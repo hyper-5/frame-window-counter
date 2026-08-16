@@ -1,0 +1,17 @@
+{
+  "geode": "5.8.2",
+  "gd": {
+    "win": "2.2081"
+  },
+  "version": "v1.0.0",
+  "id": "c0nscious.frame_window",
+  "name": "Frame Window Counter",
+  "developer": "C0nscious",
+  "description": "A frame window counter and label tool.",
+  "early-load": false,
+  "tags": [ "utility", "customization" ],
+  "links": {
+    "homepage": "https://space.bilibili.com/3494358087108748",
+    "source": "https://github.com/hyper-5/frame-window-counter"
+  }
+}

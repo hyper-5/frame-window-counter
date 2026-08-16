@@ -1,0 +1,86 @@
+#include <Geode/Geode.hpp>
+#include <Geode/modify/CCDirector.hpp>
+#include "../Data/State.hpp"
+#include "../UI/FrameActionPopup.hpp"
+#include "../Common.hpp"
+
+#ifdef GEODE_IS_WINDOWS
+#include <windows.h>
+#endif
+
+using namespace geode::prelude;
+
+class $modify(MyDirector, CCDirector) {
+    void drawScene() {
+        CCDirector::drawScene();
+
+        auto scene = this->getRunningScene();
+        if (!scene || typeinfo_cast<CCTransitionScene*>(scene)) {
+            return;
+        }
+
+        //自动保存逻辑
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - g_lastAutoSaveTime).count() >= AUTOSAVETIME) {
+            g_lastAutoSaveTime = now;
+            if (auto pl = PlayLayer::get(); pl && pl->m_level) {
+                doAutoSave(pl->m_level);
+            }
+        }
+
+        //Windows全局快捷键监听
+#ifdef GEODE_IS_WINDOWS
+        if (GetActiveWindow() != nullptr) {
+            static bool s_hotkeyPressed = false;
+            if (GetAsyncKeyState('O') & 0x8000) {
+                if (!s_hotkeyPressed) {
+                    s_hotkeyPressed = true;
+
+                    bool closedAny = false;
+                    if (auto children = scene->getChildren()) {
+                        for (int i = children->count() - 1; i >= 0; i--) {
+                            auto child = static_cast<CCNode*>(children->objectAtIndex(i));
+                            std::string_view id = child->getID();
+
+                            // 关闭所有关联的弹窗
+                            if (id == "FrameActionPopup"_spr ||
+                                id == "LabelPresetPopup"_spr ||
+                                id == "WindowPresetPopup"_spr ||
+                                id == "PrecisionSettingsPopup"_spr ||
+                                id == "LStarCalcSettingsPopup"_spr) {
+                                if (auto popup = typeinfo_cast<geode::Popup*>(child)) {
+                                    popup->removeFromParentAndCleanup(true);
+                                    closedAny = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // 若未打开任何弹窗，则弹出帧数编辑器
+                    if (!closedAny) {
+                        if (auto popup = FrameActionPopup::create()) {
+                            popup->setID("FrameActionPopup"_spr);
+                            popup->showInstant();
+                        }
+                    }
+                }
+            }
+            else {
+                s_hotkeyPressed = false;
+            }
+        }
+#endif
+
+        // 关卡运行中的实时帧高亮追踪
+        if (g_modEnabled) {
+            if (auto playLayer = PlayLayer::get()) {
+                if (!playLayer->m_isPaused && playLayer->m_player1 && !playLayer->m_player1->m_isDead) {
+                    if (auto popup = typeinfo_cast<FrameActionPopup*>(scene->getChildByID("FrameActionPopup"_spr))) {
+                        int currentFrame = static_cast<int>(playLayer->m_gameState.m_levelTime * g_macroFps);
+                        popup->doTrackingTick(currentFrame);
+                    }
+                }
+            }
+        }
+    }
+};
