@@ -324,6 +324,7 @@ void FrameActionPopup::onOpenPrecision(CCObject*) {
 void FrameActionPopup::onToggleMod(CCObject* sender) {
     g_modEnabled = !g_modEnabled;
     saveSettings();
+    triggerHUDRefresh();
 
     if (!g_modEnabled) {
         if (auto pl = GameManager::sharedState()->getPlayLayer()) {
