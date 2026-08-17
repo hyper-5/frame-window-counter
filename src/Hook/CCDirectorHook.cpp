@@ -3,6 +3,12 @@
 #include "../Data/State.hpp"
 #include "../UI/FrameActionPopup.hpp"
 #include "../Common.hpp"
+#include "../UI/AddFramePopup.hpp"
+#include "../UI/FrameActionPopup.hpp"
+#include "../UI/PrecisionSettingsPopup.hpp"
+#include "../UI/LStarCalcSettingsPopup.hpp"
+#include "../UI/LabelPresetPopup.hpp"
+#include "../UI/WindowPresetPopup.hpp"
 
 #ifdef GEODE_IS_WINDOWS
 #include <windows.h>
@@ -43,15 +49,14 @@ class $modify(MyDirector, CCDirector) {
                             std::string_view id = child->getID();
 
                             // 关闭所有关联的弹窗
-                            if (id == "FrameActionPopup"_spr ||
-                                id == "LabelPresetPopup"_spr ||
-                                id == "WindowPresetPopup"_spr ||
-                                id == "PrecisionSettingsPopup"_spr ||
-                                id == "LStarCalcSettingsPopup"_spr) {
-                                if (auto popup = typeinfo_cast<geode::Popup*>(child)) {
-                                    popup->removeFromParentAndCleanup(true);
-                                    closedAny = true;
-                                }
+                            if (typeinfo_cast<AddFramePopup*>(child) ||
+                                typeinfo_cast<FrameActionPopup*>(child) ||
+                                typeinfo_cast<PrecisionSettingsPopup*>(child) ||
+                                typeinfo_cast<LStarCalcSettingsPopup*>(child) ||
+                                typeinfo_cast<LabelPresetPopup*>(child) ||
+                                typeinfo_cast<WindowPresetPopup*>(child)) {
+                                child->removeFromParentAndCleanup(true);
+                                closedAny = true;
                             }
                         }
                     }
