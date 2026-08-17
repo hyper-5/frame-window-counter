@@ -402,7 +402,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
                         for (auto& [idStr, preset] : g_labelPresets) {
                             if (fw >= preset.minVal && fw <= preset.maxVal) {
-                                if (!skipAudio && !preset.audioPath.empty()) {
+                                if (!skipAudio && !preset.audioPath.empty() && preset.showInHud) {
                                     SoundManager::playSound(preset.audioPath);
                                 }
                                 m_fields->m_hudCounts[preset.id]++;
