@@ -10,6 +10,8 @@ private:
     static FMOD::ChannelGroup* s_sfxGroup;
 
     static bool ensureChannelGroup(FMOD::System* sys);
+    //单个音效最大允许并发重叠数
+    static constexpr size_t MAX_ACTIVE_VOICES = 6;
 
 public:
     static void playSound(const std::string& path);

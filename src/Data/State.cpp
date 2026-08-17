@@ -183,3 +183,7 @@ void doAutoSave(GJGameLevel* level) {
         }
         }).detach();
 }
+
+$on_mod(Loaded) {
+    loadModData();
+}

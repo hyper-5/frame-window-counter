@@ -126,6 +126,8 @@ namespace FileIO {
 
     void importReplay(std::function<void()> onSuccessCallback) {
 #ifdef GEODE_IS_WINDOWS
+        loadModData();
+
         HWND parentHwnd = GetActiveWindow();
         if (!parentHwnd) {
             parentHwnd = WindowFromDC(wglGetCurrentDC());
@@ -274,7 +276,10 @@ namespace FileIO {
                             alert->show(); stopAlertAnimation(alert);
                             return;
                         }
-                        if (updateFps && parsedFps > 0.0) g_macroFps = parsedFps;
+                        if (updateFps && parsedFps > 0.0) {
+                            g_macroFps = parsedFps;
+                            saveSettings();
+                        }
 
                         g_frameActions.clear();
                         int addedCount = 0;
