@@ -20,6 +20,10 @@ class $modify(MyPlayLayer, PlayLayer) {
         bool m_wasCalculating = false;                          // 记录上一帧是否处于后台计算中
         std::vector<Ref<CCNode>> m_activeMarkers;               // 场景中当前存活的标记节点列表
         std::map<int, Ref<CCLabelBMFont>> m_countLabels;        // 缓存各预设的数字标签以支持高性能局部文本刷新
+
+        // 1P 与 2P 分立的最近画圈帧号记录
+        int m_lastSpawnFrame1P = -1;
+        int m_lastSpawnFrame2P = -1;
     };
 
     bool init(GJGameLevel * level, bool useReplay, bool dontCreateObjects) {
@@ -34,6 +38,8 @@ class $modify(MyPlayLayer, PlayLayer) {
         m_fields->m_hudCounts.clear();
         m_fields->m_activeMarkers.clear();
         m_fields->m_countLabels.clear();
+        m_fields->m_lastSpawnFrame1P = -1;
+        m_fields->m_lastSpawnFrame2P = -1;
 
         this->rebuildHUD();
         this->schedule(schedule_selector(MyPlayLayer::onMyTick));
@@ -79,6 +85,8 @@ class $modify(MyPlayLayer, PlayLayer) {
         m_fields->m_lastFrame = currentFrame - 1; // 设为前一帧，保证当前起点帧的动作能在 onMyTick 中触发
         m_fields->m_lastPrecIndex = -1;
         m_fields->m_hudCounts.clear();
+        m_fields->m_lastSpawnFrame1P = -1;
+        m_fields->m_lastSpawnFrame2P = -1;
 
         // 清空存活标记
         for (auto& marker : m_fields->m_activeMarkers) {
@@ -354,6 +362,8 @@ class $modify(MyPlayLayer, PlayLayer) {
                 if (currentFrame < m_fields->m_lastFrame) {
                     m_fields->m_lastFrame = currentFrame - 1;
                     m_fields->m_hudCounts.clear();
+                    m_fields->m_lastSpawnFrame1P = -1;
+                    m_fields->m_lastSpawnFrame2P = -1;
                     SoundManager::stopAll();
 
                     for (auto& marker : m_fields->m_activeMarkers) {
@@ -397,12 +407,30 @@ class $modify(MyPlayLayer, PlayLayer) {
                                 }
                             }
 
-                            CCPoint spawnPos = this->m_player1->getPosition();
-                            if (action.isPlayer2 && this->m_player2) {
-                                spawnPos = this->m_player2->getPosition();
+                            // 1P 与 2P 分开判断：同一帧内仅允许各自生成首个圆圈
+                            bool shouldSpawnMarker = false;
+                            if (!action.isPlayer2) {
+                                if (action.frame != m_fields->m_lastSpawnFrame1P) {
+                                    shouldSpawnMarker = true;
+                                    m_fields->m_lastSpawnFrame1P = action.frame;
+                                }
                             }
-                            this->spawnFrameWindowMarker(spawnPos, markerText, markerColor);
+                            else {
+                                if (action.frame != m_fields->m_lastSpawnFrame2P) {
+                                    shouldSpawnMarker = true;
+                                    m_fields->m_lastSpawnFrame2P = action.frame;
+                                }
+                            }
 
+                            if (shouldSpawnMarker) {
+                                CCPoint spawnPos = this->m_player1->getPosition();
+                                if (action.isPlayer2 && this->m_player2) {
+                                    spawnPos = this->m_player2->getPosition();
+                                }
+                                this->spawnFrameWindowMarker(spawnPos, markerText, markerColor);
+                            }
+
+                            // HUD 与音效依然对同帧所有操作保持正常触发
                             for (auto& [idStr, preset] : g_labelPresets) {
                                 if (fw >= preset.minVal && fw <= preset.maxVal) {
                                     if (!skipAudio && !preset.audioPath.empty() && preset.showInHud) {
