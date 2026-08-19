@@ -85,7 +85,7 @@ void startGlobalRecalc() {
             double t_i = respawnTime + (validActions[i].frame / fps);
             T[i] = t_i;
 
-            int N_i = validActions[i].frameWindow <= 0 ? 1 : validActions[i].frameWindow;
+            double N_i = validActions[i].frameWindow <= 0.0 ? 1.0 : validActions[i].frameWindow;
             double w_i = N_i / fps;
 			//计算Nerve、Fatigue、CPS的乘数
             double n_mult = std::exp(-kT * t_i);

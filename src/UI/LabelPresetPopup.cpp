@@ -40,7 +40,7 @@ bool LabelPresetPopup::init() {
 
     m_minInput = TextInput::create(70.f, "0");
     m_minInput->setPosition({ centerX - 60.f, 195.f });
-    m_minInput->setFilter("0123456789");
+    m_minInput->setFilter("0123456789.");
     m_minInput->setCallback([this](std::string const&) { this->autoSave(); });
     m_mainLayer->addChild(m_minInput);
 
@@ -51,7 +51,7 @@ bool LabelPresetPopup::init() {
 
     m_maxInput = TextInput::create(70.f, "999999");
     m_maxInput->setPosition({ centerX + 80.f, 195.f });
-    m_maxInput->setFilter("0123456789");
+    m_maxInput->setFilter("0123456789.");
     m_maxInput->setCallback([this](std::string const&) { this->autoSave(); });
     m_mainLayer->addChild(m_maxInput);
 

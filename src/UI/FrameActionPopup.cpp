@@ -7,6 +7,7 @@
 #include "../IO/FileIO.hpp"
 #include "../Common.hpp"
 #include <algorithm>
+#include <cmath>
 
 using namespace geode::prelude;
 
@@ -467,7 +468,7 @@ void FrameActionPopup::refreshList(bool rebuildKeys) {
 
             if (auto winInput = static_cast<TextInput*>(cell->getChildByID("win-input"_spr))) {
                 winInput->setUserObject(cocos2d::CCString::create(actionKey));
-                std::string winStr = std::to_string(action.frameWindow);
+                std::string winStr = formatWindowVal(action.frameWindow);
                 if (winInput->getString() != winStr) winInput->setString(winStr);
             }
         }
@@ -526,7 +527,7 @@ CCNode* FrameActionPopup::createCellTemplate(int index) {
     cell->addChild(typeText);
 
     auto labelIdInput = TextInput::create(50.f, "Win");
-    labelIdInput->setFilter("0123456789");
+    labelIdInput->setFilter("0123456789.");
     labelIdInput->setPosition({ 315.f, 20.f });
     labelIdInput->setID("win-input"_spr);
 
@@ -536,12 +537,12 @@ CCNode* FrameActionPopup::createCellTemplate(int index) {
         std::string actionKey = strObj->getCString();
 
         if (g_frameActions.contains(actionKey)) {
-            int fwVal = 1;
+            double fwVal = 1.0;
             if (!text.empty()) {
-                try { fwVal = std::stoi(text); }
-                catch (...) { fwVal = 999999; }
+                try { fwVal = std::stod(text); }
+                catch (...) { fwVal = 1.0; }
             }
-            if (g_frameActions[actionKey].frameWindow != fwVal) {
+            if (std::abs(g_frameActions[actionKey].frameWindow - fwVal) > 1e-6) {
                 g_frameActions[actionKey].frameWindow = fwVal;
                 saveFrames();
             }
@@ -588,7 +589,7 @@ void FrameActionPopup::onTogglePlayer(CCObject* sender) {
     auto it = std::lower_bound(g_tickActionsCache.begin(), g_tickActionsCache.end(), action.frame,
         [](const FrameAction& a, int frame) { return a.frame < frame; });
     while (it != g_tickActionsCache.end() && it->frame == action.frame) {
-        if (it->isPlayer2 != isP2 && it->frameWindow == action.frameWindow) {
+        if (it->isPlayer2 != isP2 && std::abs(it->frameWindow - action.frameWindow) < 1e-6) {
             it->isPlayer2 = isP2;
             break;
         }

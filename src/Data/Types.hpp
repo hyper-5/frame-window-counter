@@ -3,13 +3,14 @@
 #include <matjson/std.hpp>
 #include <gdr/gdr.hpp>
 #include <string>
+#include <cmath>
 
 struct MyReplay : gdr::Replay<MyReplay, gdr::Input<>> {
     MyReplay() : gdr::Replay<MyReplay, gdr::Input<>>("FrameCounter", 1) {}
 };
 
 struct FrameWindowPreset {
-    int window = 1;
+    double window = 1.0;
     cocos2d::ccColor4F color = { 1.f, 1.f, 1.f, 1.f };
 };
 
@@ -18,7 +19,7 @@ struct matjson::Serialize<FrameWindowPreset> {
     static geode::Result<FrameWindowPreset> fromJson(matjson::Value const& value) {
         if (!value.isObject()) return geode::Err("Expected object");
         FrameWindowPreset p;
-        p.window = value["window"].asInt().unwrapOr(1);
+        p.window = value["window"].asDouble().unwrapOr(1.0);
         p.color.r = static_cast<float>(value["r"].asDouble().unwrapOr(1.0));
         p.color.g = static_cast<float>(value["g"].asDouble().unwrapOr(1.0));
         p.color.b = static_cast<float>(value["b"].asDouble().unwrapOr(1.0));
@@ -44,14 +45,14 @@ struct LabelPreset {
     std::string audioPath = "";
     cocos2d::ccColor4F color = { 1.f, 1.f, 1.f, 1.f };
     bool showInHud = true;
-    int minVal = 0;
-    int maxVal = 999999;
+    double minVal = 0.0;
+    double maxVal = 999999.0;
 
     void updateBounds() {
-        try { minVal = minWindowStr.empty() ? 0 : std::stoi(minWindowStr); }
-        catch (...) { minVal = 0; }
-        try { maxVal = maxWindowStr.empty() ? 999999 : std::stoi(maxWindowStr); }
-        catch (...) { maxVal = 999999; }
+        try { minVal = minWindowStr.empty() ? 0.0 : std::stod(minWindowStr); }
+        catch (...) { minVal = 0.0; }
+        try { maxVal = maxWindowStr.empty() ? 999999.0 : std::stod(maxWindowStr); }
+        catch (...) { maxVal = 999999.0; }
     }
 };
 
@@ -92,6 +93,6 @@ struct matjson::Serialize<LabelPreset> {
 struct FrameAction {
     int frame = 0;
     bool shouldDraw = true;
-    int frameWindow = 1;
+    double frameWindow = 1.0;
     bool isPlayer2 = false;
 };

@@ -19,7 +19,7 @@ bool WindowPresetPopup::init() {
 
     m_winInput = TextInput::create(140.f, "Window (e.g. 4)");
     m_winInput->setPosition({ centerX - 50.f, 130.f });
-    m_winInput->setFilter("0123456789");
+    m_winInput->setFilter("0123456789.");
     m_mainLayer->addChild(m_winInput);
 
     auto loadBtn = CCMenuItemSpriteExtra::create(ButtonSprite::create("Load"), this, menu_selector(WindowPresetPopup::onLoad));

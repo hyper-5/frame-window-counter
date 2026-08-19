@@ -29,9 +29,7 @@ namespace FileIO {
             });
 
         HWND parentHwnd = GetActiveWindow();
-        if (!parentHwnd) {
-            parentHwnd = WindowFromDC(wglGetCurrentDC());
-        }
+        if (!parentHwnd) parentHwnd = WindowFromDC(wglGetCurrentDC());
 
         std::thread([exportList, parentHwnd]() {
             HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -40,7 +38,7 @@ namespace FileIO {
             OPENFILENAMEA ofn;
             ZeroMemory(&ofn, sizeof(ofn));
             ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = parentHwnd; 
+            ofn.hwndOwner = parentHwnd;
             ofn.lpstrFilter = "Frame Window Counter (*.fwc)\0*.fwc\0NANDL Calculator JSON (*.json)\0*.json\0All Files\0*.*\0";
             ofn.lpstrFile = filename;
             ofn.nMaxFile = MAX_PATH;
@@ -55,7 +53,6 @@ namespace FileIO {
 
                 std::ofstream f(filename, isJson ? std::ios::out : std::ios::binary);
                 if (f) {
-                    //1.NaNDL Calculator 标准 JSON 导出
                     if (isJson) {
                         std::vector<matjson::Value> arr;
                         int inputCounter = 1;
@@ -64,7 +61,7 @@ namespace FileIO {
                             arr.push_back(matjson::makeObject({
                                 {"input", inputCounter++},
                                 {"timePosition", act.frame},
-                                {"frameWindow", (act.frameWindow == 0) ? 1 : act.frameWindow}
+                                {"frameWindow", (act.frameWindow <= 0.0) ? 1.0 : act.frameWindow}
                                 }));
                         }
                         matjson::Value rootObject = matjson::makeObject({
@@ -80,15 +77,9 @@ namespace FileIO {
                             });
                         f << rootObject.dump(2);
                     }
-                    // 2.FWC 二进制格式导出
-                    // 二进制结构布局：
-                    // [4 Bytes Magic: "FWCB"]
-                    // [8 Bytes double: fps]
-                    // [4 Bytes uint32: count]
-                    // [Per Action: 4B int32 (frame) + 4B int32 (frameWindow) + 1B uint8 (flags)]
-                    //  * flags bit0: shouldDraw, bit1: isPlayer2
                     else {
-                        f.write("FWCB", 4);
+                        // 新版 FWC2: 支持 8 字节 double
+                        f.write("FWC2", 4);
                         double fps = g_macroFps;
                         f.write(reinterpret_cast<const char*>(&fps), sizeof(double));
                         uint32_t count = static_cast<uint32_t>(exportList.size());
@@ -96,10 +87,10 @@ namespace FileIO {
 
                         for (const auto& act : exportList) {
                             int32_t frame = act.frame;
-                            int32_t frameWindow = act.frameWindow;
+                            double frameWindow = act.frameWindow;
                             uint8_t flags = (act.shouldDraw ? 1 : 0) | (act.isPlayer2 ? 2 : 0);
                             f.write(reinterpret_cast<const char*>(&frame), sizeof(int32_t));
-                            f.write(reinterpret_cast<const char*>(&frameWindow), sizeof(int32_t));
+                            f.write(reinterpret_cast<const char*>(&frameWindow), sizeof(double));
                             f.write(reinterpret_cast<const char*>(&flags), sizeof(uint8_t));
                         }
                     }
@@ -117,9 +108,7 @@ namespace FileIO {
                 }
             }
 
-            if (SUCCEEDED(hr)) {
-                CoUninitialize();
-            }
+            if (SUCCEEDED(hr)) CoUninitialize();
             }).detach();
 #endif
     }
@@ -129,9 +118,7 @@ namespace FileIO {
         loadModData();
 
         HWND parentHwnd = GetActiveWindow();
-        if (!parentHwnd) {
-            parentHwnd = WindowFromDC(wglGetCurrentDC());
-        }
+        if (!parentHwnd) parentHwnd = WindowFromDC(wglGetCurrentDC());
 
         std::thread([onSuccessCallback, parentHwnd]() {
             HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -140,7 +127,7 @@ namespace FileIO {
             OPENFILENAMEA ofn;
             ZeroMemory(&ofn, sizeof(ofn));
             ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = parentHwnd; 
+            ofn.hwndOwner = parentHwnd;
             ofn.lpstrFilter = "Supported Formats\0*.fwc;*.json;*.gdr;*.gdr2;*.slc\0Frame Window Counter (*.fwc)\0*.fwc\0NANDL Calculator JSON (*.json)\0*.json\0GD Replay / Silicate (*.gdr;*.gdr2;*.slc)\0*.gdr;*.gdr2;*.slc\0All Files\0*.*\0";
             ofn.lpstrFile = filename;
             ofn.nMaxFile = MAX_PATH;
@@ -156,13 +143,16 @@ namespace FileIO {
                     std::string ext = path.extension().string();
                     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-                    //1.解析.fwc
                     if (ext == ".fwc") {
                         std::ifstream f(path, std::ios::binary);
                         if (!f) throw std::runtime_error("Cannot open .fwc file");
                         char magic[5] = { 0 };
                         f.read(magic, 4);
-                        if (std::string(magic) != "FWCB") throw std::runtime_error("Invalid binary FWC file");
+                        std::string magicStr(magic);
+
+                        bool isLegacy = (magicStr == "FWCB");
+                        bool isNew = (magicStr == "FWC2");
+                        if (!isLegacy && !isNew) throw std::runtime_error("Invalid binary FWC file signature");
 
                         f.read(reinterpret_cast<char*>(&parsedFps), sizeof(double));
                         updateFps = true;
@@ -170,16 +160,25 @@ namespace FileIO {
                         f.read(reinterpret_cast<char*>(&count), sizeof(uint32_t));
 
                         for (uint32_t i = 0; i < count; ++i) {
-                            int32_t frame = 0, frameWindow = 1;
+                            int32_t frame = 0;
+                            double frameWindow = 1.0;
                             uint8_t flags = 0;
+
                             f.read(reinterpret_cast<char*>(&frame), sizeof(int32_t));
-                            f.read(reinterpret_cast<char*>(&frameWindow), sizeof(int32_t));
+							//兼容旧版本 FWC 文件，旧版本使用 4 字节 int32_t 存储 frameWindow
+                            if (isLegacy) {
+                                int32_t legacyWindow = 1;
+                                f.read(reinterpret_cast<char*>(&legacyWindow), sizeof(int32_t));
+                                frameWindow = static_cast<double>(legacyWindow);
+                            }
+                            else {
+                                f.read(reinterpret_cast<char*>(&frameWindow), sizeof(double));
+                            }
                             f.read(reinterpret_cast<char*>(&flags), sizeof(uint8_t));
 
                             newActions.push_back({ frame, (flags & 1) != 0, frameWindow, (flags & 2) != 0 });
                         }
                     }
-                    //2.解析.json
                     else if (ext == ".json") {
                         std::ifstream f(path);
                         if (!f) throw std::runtime_error("Cannot open .json file");
@@ -196,14 +195,13 @@ namespace FileIO {
                                     FrameAction act;
                                     act.frame = static_cast<int>(item["timePosition"].asInt().unwrapOr(0));
                                     act.shouldDraw = true;
-                                    act.frameWindow = static_cast<int>(item["frameWindow"].asInt().unwrapOr(1));
+                                    act.frameWindow = item["frameWindow"].asDouble().unwrapOr(1.0);
                                     act.isPlayer2 = false;
                                     newActions.push_back(act);
                                 }
                             }
                         }
                     }
-                    //3.解析.slc
                     else if (ext == ".slc") {
                         std::ifstream file(path, std::ios::binary);
                         if (!file) throw std::runtime_error("Cannot open .slc file");
@@ -216,17 +214,11 @@ namespace FileIO {
                         for (const auto& atomVariant : replay.m_atoms.m_atoms) {
                             if (const auto* actionAtom = std::get_if<slc::ActionAtom>(&atomVariant)) {
                                 for (const auto& action : actionAtom->m_actions) {
-                                    FrameAction act;
-                                    act.frame = static_cast<int>(action.m_frame);
-                                    act.shouldDraw = false;
-                                    act.frameWindow = 1;
-                                    act.isPlayer2 = action.m_player2;
-                                    newActions.push_back(act);
+                                    newActions.push_back({ static_cast<int>(action.m_frame), false, 1.0, action.m_player2 });
                                 }
                             }
                         }
                     }
-                    //4.解析.gdr和.gdr2
                     else if (ext == ".gdr2" || ext == ".gdr") {
                         std::vector<gdr::Input<>> inputs;
                         if (ext == ".gdr2") {
@@ -236,9 +228,7 @@ namespace FileIO {
                                 parsedFps = importRes.unwrap().framerate;
                                 updateFps = true;
                             }
-                            else {
-                                throw std::runtime_error("Failed to parse .gdr2 file");
-                            }
+                            else throw std::runtime_error("Failed to parse .gdr2 file");
                         }
                         else {
                             std::ifstream f(path, std::ios::binary);
@@ -254,22 +244,14 @@ namespace FileIO {
                                 parsedFps = convertRes.unwrap().framerate;
                                 updateFps = true;
                             }
-                            else {
-                                throw std::runtime_error("Failed to convert .gdr file");
-                            }
+                            else throw std::runtime_error("Failed to convert .gdr file");
                         }
                         std::sort(inputs.begin(), inputs.end(), [](const auto& a, const auto& b) { return a.frame < b.frame; });
                         for (const auto& input : inputs) {
-                            FrameAction act;
-                            act.frame = static_cast<int>(input.frame);
-                            act.shouldDraw = false;
-                            act.frameWindow = 1;
-                            act.isPlayer2 = input.player2;
-                            newActions.push_back(act);
+                            newActions.push_back({ static_cast<int>(input.frame), false, 1.0, input.player2 });
                         }
                     }
 
-                    //合并动作数据并更新全局配置
                     geode::Loader::get()->queueInMainThread([newActions, parsedFps, updateFps, onSuccessCallback]() {
                         if (newActions.empty()) {
                             auto alert = FLAlertLayer::create("Error", "No valid frames found or empty file.", "OK");
@@ -310,11 +292,8 @@ namespace FileIO {
                 }
             }
 
-            if (SUCCEEDED(hr)) {
-                CoUninitialize();
-            }
+            if (SUCCEEDED(hr)) CoUninitialize();
             }).detach();
 #endif
     }
-
-} 
+}

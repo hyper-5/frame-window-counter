@@ -162,18 +162,18 @@ void doAutoSave(GJGameLevel* level) {
 
         std::ofstream f(filepath, std::ios::binary);
         if (f) {
-            f.write("FWCB", 4);
+            f.write("FWC2", 4);
             f.write(reinterpret_cast<const char*>(&fps), sizeof(double));
             uint32_t count = static_cast<uint32_t>(exportList.size());
             f.write(reinterpret_cast<const char*>(&count), sizeof(uint32_t));
 
             for (const auto& act : exportList) {
                 int32_t frame = act.frame;
-                int32_t frameWindow = act.frameWindow;
+                double frameWindow = act.frameWindow;
                 uint8_t flags = (act.shouldDraw ? 1 : 0) | (act.isPlayer2 ? 2 : 0);
 
                 f.write(reinterpret_cast<const char*>(&frame), sizeof(int32_t));
-                f.write(reinterpret_cast<const char*>(&frameWindow), sizeof(int32_t));
+                f.write(reinterpret_cast<const char*>(&frameWindow), sizeof(double));
                 f.write(reinterpret_cast<const char*>(&flags), sizeof(uint8_t));
             }
             f.close();

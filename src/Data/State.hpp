@@ -4,6 +4,10 @@
 #include <vector>
 #include <atomic>
 #include <chrono>
+#include <string>
+#include <sstream>
+#include <iomanip>
+#include <cmath>
 
 extern std::map<std::string, FrameWindowPreset> g_windowPresets;
 extern std::map<std::string, LabelPreset> g_labelPresets;
@@ -22,7 +26,6 @@ extern double g_kT;               // Nerve 常数
 extern double g_kU;               // Fatigue 常数
 extern double g_kC;               // CPS 常数
 
-
 extern std::atomic<int> g_calcId;
 extern std::atomic<bool> g_isCalculating;
 extern std::atomic<float> g_calcProgress;
@@ -30,6 +33,13 @@ extern std::atomic<bool> g_isLStarDirty;
 extern std::chrono::steady_clock::time_point g_lastAutoSaveTime;
 
 extern std::vector<double> g_vBase, g_vN, g_vF, g_vC, g_vNF, g_vNC, g_vFC, g_vNFC;
+
+inline std::string formatWindowVal(double val) {
+    if (std::abs(val) < 1e-9) return "0";
+    std::ostringstream oss;
+    oss << std::setprecision(6) << val;
+    return oss.str();
+}
 
 void loadModData();
 void saveSettings();

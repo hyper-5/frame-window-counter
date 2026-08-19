@@ -6,12 +6,13 @@
 #include <algorithm>
 #include <vector>
 #include <map>
+#include <cmath>
 
 using namespace geode::prelude;
 
 class $modify(MyPlayLayer, PlayLayer) {
     struct Fields {
-        int m_lastFrame = 0;                                    // 上一次处理的帧号
+        int m_lastFrame = -1;                                   // 初始设为 -1，确保第 0 帧能被正确触发
         std::map<int, int> m_hudCounts;                         // 各预设 ID 对应的当前累计命中次数
         Ref<CCNode> m_hudNode = nullptr;                        // 左上角 HUD 容器节点
         Ref<CCNode> m_precNode = nullptr;                       // 左下角 Precision L* 容器节点
@@ -27,7 +28,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         g_lastAutoSaveTime = std::chrono::steady_clock::now();
         loadModData();
 
-        m_fields->m_lastFrame = 0;
+        m_fields->m_lastFrame = -1;
         m_fields->m_lastPrecIndex = -1;
         m_fields->m_wasCalculating = false;
         m_fields->m_hudCounts.clear();
@@ -59,7 +60,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         m_fields->m_hudCounts.clear();
         for (const auto& action : g_tickActionsCache) {
             if (action.shouldDraw && action.frame < m_fields->m_lastFrame) {
-                int fw = action.frameWindow;
+                double fw = action.frameWindow;
                 for (const auto& [idStr, preset] : g_labelPresets) {
                     if (fw >= preset.minVal && fw <= preset.maxVal) {
                         m_fields->m_hudCounts[preset.id]++;
@@ -85,10 +86,10 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
         m_fields->m_activeMarkers.clear();
 
-        //重新统计复活点之前的HUD数据
+        // 重新统计复活点之前的 HUD 数据
         for (const auto& action : g_tickActionsCache) {
             if (action.shouldDraw && action.frame < currentFrame) {
-                int fw = action.frameWindow;
+                double fw = action.frameWindow;
                 for (const auto& [idStr, preset] : g_labelPresets) {
                     if (fw >= preset.minVal && fw <= preset.maxVal) {
                         m_fields->m_hudCounts[preset.id]++;
@@ -124,7 +125,6 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         bool isCalc = g_isCalculating.load();
 
-        //1.处于后台计算中：显示动态百分比进度
         if (isCalc) {
             m_fields->m_wasCalculating = true;
             if (!m_fields->m_precNode || g_forcePrecRedraw) {
@@ -154,7 +154,6 @@ class $modify(MyPlayLayer, PlayLayer) {
             return;
         }
 
-        //2.检测到计算刚刚完成，强制重置标记并重绘HUD
         if (m_fields->m_wasCalculating) {
             m_fields->m_wasCalculating = false;
             g_forcePrecRedraw = true;
@@ -169,7 +168,6 @@ class $modify(MyPlayLayer, PlayLayer) {
             return;
         }
 
-        //二分查找当前帧对应的已完成操作索引
         int idx = -1;
         auto it = std::upper_bound(g_validActions.begin(), g_validActions.end(), currentFrame,
             [](int frame, const FrameAction& a) { return frame < a.frame; });
@@ -177,7 +175,6 @@ class $modify(MyPlayLayer, PlayLayer) {
             idx = static_cast<int>(std::distance(g_validActions.begin(), it) - 1);
         }
 
-        //3.索引改变或触发强制重绘时刷新文本
         if (idx != m_fields->m_lastPrecIndex || !m_fields->m_precNode || g_forcePrecRedraw) {
             m_fields->m_lastPrecIndex = idx;
             g_forcePrecRedraw = false;
@@ -354,9 +351,8 @@ class $modify(MyPlayLayer, PlayLayer) {
                 int currentFrame = static_cast<int>(this->m_gameState.m_levelTime * g_macroFps);
                 this->updatePrecisionHUD(currentFrame);
 
-                bool needsHudUpdate = false;
-
-                if (m_fields->m_lastFrame > currentFrame) {
+                // 1. 真正的时间倒退（读档、练习模式重试、死亡回退）
+                if (currentFrame < m_fields->m_lastFrame) {
                     m_fields->m_lastFrame = currentFrame;
                     m_fields->m_hudCounts.clear();
                     SoundManager::stopAll();
@@ -368,7 +364,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
                     for (const auto& action : g_tickActionsCache) {
                         if (action.shouldDraw && action.frame < currentFrame) {
-                            int fw = action.frameWindow;
+                            double fw = action.frameWindow;
                             for (const auto& [idStr, preset] : g_labelPresets) {
                                 if (fw >= preset.minVal && fw <= preset.maxVal) {
                                     m_fields->m_hudCounts[preset.id]++;
@@ -376,54 +372,57 @@ class $modify(MyPlayLayer, PlayLayer) {
                             }
                         }
                     }
-                    needsHudUpdate = true;
+                    this->updateHUDCounts();
                 }
+                // 2. 正常时间向前推进：处理 (m_lastFrame, currentFrame] 区间
+                else if (currentFrame > m_fields->m_lastFrame) {
+                    bool skipAudio = (currentFrame - m_fields->m_lastFrame > static_cast<int>(g_macroFps));
+                    bool needsHudUpdate = false;
 
-                bool skipAudio = (currentFrame - m_fields->m_lastFrame > static_cast<int>(g_macroFps));
+                    auto it = std::upper_bound(g_tickActionsCache.begin(), g_tickActionsCache.end(), m_fields->m_lastFrame,
+                        [](int frame, const FrameAction& a) { return frame < a.frame; });
 
-                auto it = std::lower_bound(g_tickActionsCache.begin(), g_tickActionsCache.end(), m_fields->m_lastFrame,
-                    [](const FrameAction& a, int frame) { return a.frame < frame; });
+                    while (it != g_tickActionsCache.end() && it->frame <= currentFrame) {
+                        auto& action = *it;
+                        if (action.shouldDraw) {
+                            double fw = action.frameWindow;
+                            ccColor4F markerColor = { 1.f, 1.f, 1.f, 1.f };
+                            std::string fwStr = formatWindowVal(fw);
+                            if (g_windowPresets.contains(fwStr)) {
+                                markerColor = g_windowPresets[fwStr].color;
+                            }
 
-                while (it != g_tickActionsCache.end() && it->frame <= currentFrame) {
-                    auto& action = *it;
-                    if (action.shouldDraw) {
-                        int fw = action.frameWindow;
-                        ccColor4F markerColor = { 1.f, 1.f, 1.f, 1.f };
-                        std::string fwStr = std::to_string(fw);
-                        if (g_windowPresets.contains(fwStr)) {
-                            markerColor = g_windowPresets[fwStr].color;
-                        }
+                            CCPoint spawnPos = this->m_player1->getPosition();
+                            if (action.isPlayer2 && this->m_player2) {
+                                spawnPos = this->m_player2->getPosition();
+                            }
+                            this->spawnFrameWindowMarker(spawnPos, fw, markerColor);
 
-                        CCPoint spawnPos = this->m_player1->getPosition();
-                        if (action.isPlayer2 && this->m_player2) {
-                            spawnPos = this->m_player2->getPosition();
-                        }
-                        this->spawnFrameWindowMarker(spawnPos, fw, markerColor);
-
-                        for (auto& [idStr, preset] : g_labelPresets) {
-                            if (fw >= preset.minVal && fw <= preset.maxVal) {
-                                if (!skipAudio && !preset.audioPath.empty() && preset.showInHud) {
-                                    SoundManager::playSound(preset.audioPath);
-                                }
-                                m_fields->m_hudCounts[preset.id]++;
-                                if (preset.showInHud) {
-                                    needsHudUpdate = true;
+                            for (auto& [idStr, preset] : g_labelPresets) {
+                                if (fw >= preset.minVal && fw <= preset.maxVal) {
+                                    if (!skipAudio && !preset.audioPath.empty() && preset.showInHud) {
+                                        SoundManager::playSound(preset.audioPath);
+                                    }
+                                    m_fields->m_hudCounts[preset.id]++;
+                                    if (preset.showInHud) {
+                                        needsHudUpdate = true;
+                                    }
                                 }
                             }
                         }
+                        it++;
                     }
-                    it++;
+
+                    m_fields->m_lastFrame = currentFrame;
+                    if (needsHudUpdate) this->updateHUDCounts();
+
+                    this->cleanupOffscreenMarkers();
                 }
-
-                m_fields->m_lastFrame = currentFrame + 1;
-                if (needsHudUpdate) this->updateHUDCounts();
-
-                this->cleanupOffscreenMarkers();
             }
         }
     }
 
-    void spawnFrameWindowMarker(CCPoint pos, int frameWindow, ccColor4F color) {
+    void spawnFrameWindowMarker(CCPoint pos, double frameWindow, ccColor4F color) {
         auto markerNode = CCNode::create();
         markerNode->setPosition(pos);
         markerNode->setZOrder(9999);
@@ -442,13 +441,12 @@ class $modify(MyPlayLayer, PlayLayer) {
         float g = color.g * a;
         float b = color.b * a;
 
-        //绘制黑色描边底圈与主体颜色圈
+        // 绘制黑色描边底圈与主体颜色圈
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 4.f, { 0.f, 0.f, 0.f, color.a });
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 2.f, { r, g, b, a });
         markerNode->addChild(circle);
 
-        //标记文本（0 帧显示为 "S"，其余显示具体数字）
-        std::string labelStr = (frameWindow == 0) ? "S" : std::to_string(frameWindow);
+        std::string labelStr = (std::abs(frameWindow) < 1e-6) ? "S" : formatWindowVal(frameWindow);
         auto label = CCLabelBMFont::create(labelStr.c_str(), "bigFont.fnt");
         label->setAnchorPoint({ 1.f, 0.5f });
         label->setPosition({ -18.f, 0.f });
@@ -471,4 +469,3 @@ void triggerHUDRefresh() {
         static_cast<MyPlayLayer*>(pl)->recalculateAndRefreshHUD();
     }
 }
-
