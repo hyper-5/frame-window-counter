@@ -12,14 +12,14 @@ using namespace geode::prelude;
 
 class $modify(MyPlayLayer, PlayLayer) {
     struct Fields {
-        int m_lastFrame = -1;
-        std::map<int, int> m_hudCounts;
-        Ref<CCNode> m_hudNode = nullptr;
-        Ref<CCNode> m_precNode = nullptr;
-        int m_lastPrecIndex = -1;
-        bool m_wasCalculating = false;
-        std::vector<Ref<CCNode>> m_activeMarkers;
-        std::map<int, Ref<CCLabelBMFont>> m_countLabels;
+        int m_lastFrame = -1;                                   // 初始设为 -1，保证第 0 帧能够触发
+        std::map<int, int> m_hudCounts;                         // 各预设 ID 对应的当前累计命中次数
+        Ref<CCNode> m_hudNode = nullptr;                        // 左上角 HUD 容器节点
+        Ref<CCNode> m_precNode = nullptr;                       // 左下角 Precision L* 容器节点
+        int m_lastPrecIndex = -1;                               // 上一次渲染 L* 时所处的有效动作索引
+        bool m_wasCalculating = false;                          // 记录上一帧是否处于后台计算中
+        std::vector<Ref<CCNode>> m_activeMarkers;               // 场景中当前存活的标记节点列表
+        std::map<int, Ref<CCLabelBMFont>> m_countLabels;        // 缓存各预设的数字标签以支持高性能局部文本刷新
     };
 
     bool init(GJGameLevel * level, bool useReplay, bool dontCreateObjects) {
@@ -59,7 +59,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         m_fields->m_hudCounts.clear();
         for (const auto& action : g_tickActionsCache) {
-            if (action.shouldDraw && action.frame < m_fields->m_lastFrame) {
+            if (action.shouldDraw && action.frame <= m_fields->m_lastFrame) {
                 double fw = action.frameWindow;
                 for (const auto& [idStr, preset] : g_labelPresets) {
                     if (fw >= preset.minVal && fw <= preset.maxVal) {
@@ -76,17 +76,19 @@ class $modify(MyPlayLayer, PlayLayer) {
         SoundManager::stopAll();
 
         int currentFrame = static_cast<int>(this->m_gameState.m_levelTime * g_macroFps);
-        m_fields->m_lastFrame = currentFrame;
+        m_fields->m_lastFrame = currentFrame - 1; // 设为前一帧，保证当前起点帧的动作能在 onMyTick 中触发
         m_fields->m_lastPrecIndex = -1;
         m_fields->m_hudCounts.clear();
 
+        // 清空存活标记
         for (auto& marker : m_fields->m_activeMarkers) {
             if (marker) marker->removeFromParent();
         }
         m_fields->m_activeMarkers.clear();
 
+        // 重新统计复活起点之前的 HUD 数据
         for (const auto& action : g_tickActionsCache) {
-            if (action.shouldDraw && action.frame < currentFrame) {
+            if (action.shouldDraw && action.frame <= m_fields->m_lastFrame) {
                 double fw = action.frameWindow;
                 for (const auto& [idStr, preset] : g_labelPresets) {
                     if (fw >= preset.minVal && fw <= preset.maxVal) {
@@ -350,7 +352,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                 this->updatePrecisionHUD(currentFrame);
 
                 if (currentFrame < m_fields->m_lastFrame) {
-                    m_fields->m_lastFrame = currentFrame;
+                    m_fields->m_lastFrame = currentFrame - 1;
                     m_fields->m_hudCounts.clear();
                     SoundManager::stopAll();
 
@@ -360,7 +362,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                     m_fields->m_activeMarkers.clear();
 
                     for (const auto& action : g_tickActionsCache) {
-                        if (action.shouldDraw && action.frame < currentFrame) {
+                        if (action.shouldDraw && action.frame <= m_fields->m_lastFrame) {
                             double fw = action.frameWindow;
                             for (const auto& [idStr, preset] : g_labelPresets) {
                                 if (fw >= preset.minVal && fw <= preset.maxVal) {
@@ -371,7 +373,8 @@ class $modify(MyPlayLayer, PlayLayer) {
                     }
                     this->updateHUDCounts();
                 }
-                else if (currentFrame > m_fields->m_lastFrame) {
+
+                if (currentFrame > m_fields->m_lastFrame) {
                     bool skipAudio = (currentFrame - m_fields->m_lastFrame > static_cast<int>(g_macroFps));
                     bool needsHudUpdate = false;
 
@@ -390,7 +393,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                                 auto& preset = g_windowPresets[fwStr];
                                 markerColor = preset.color;
                                 if (!preset.customText.empty()) {
-                                    markerText = preset.customText; 
+                                    markerText = preset.customText;
                                 }
                             }
 
