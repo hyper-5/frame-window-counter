@@ -6,6 +6,7 @@
 class WindowPresetPopup : public geode::Popup {
 protected:
     geode::TextInput* m_winInput = nullptr;
+    geode::TextInput* m_textInput = nullptr;
     cocos2d::CCSprite* m_colorSprite = nullptr;
     cocos2d::ccColor4F m_currentColor = { 1.f, 1.f, 1.f, 1.f };
 
@@ -14,6 +15,7 @@ protected:
     void onColorBtn(cocos2d::CCObject*);
     void autoSave();
     void onSwitchToFrames(cocos2d::CCObject*);
+    void onResetAll(cocos2d::CCObject*);
 
 public:
     static WindowPresetPopup* create();

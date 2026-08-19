@@ -12,14 +12,14 @@ using namespace geode::prelude;
 
 class $modify(MyPlayLayer, PlayLayer) {
     struct Fields {
-        int m_lastFrame = -1;                                   // 初始设为 -1，确保第 0 帧能被正确触发
-        std::map<int, int> m_hudCounts;                         // 各预设 ID 对应的当前累计命中次数
-        Ref<CCNode> m_hudNode = nullptr;                        // 左上角 HUD 容器节点
-        Ref<CCNode> m_precNode = nullptr;                       // 左下角 Precision L* 容器节点
-        int m_lastPrecIndex = -1;                               // 上一次渲染 L* 时所处的有效动作索引
-        bool m_wasCalculating = false;                          // 记录上一帧是否处于后台计算中
-        std::vector<Ref<CCNode>> m_activeMarkers;               // 场景中当前存活的标记节点列表
-        std::map<int, Ref<CCLabelBMFont>> m_countLabels;        // 缓存各预设的数字标签以支持高性能局部文本刷新
+        int m_lastFrame = -1;
+        std::map<int, int> m_hudCounts;
+        Ref<CCNode> m_hudNode = nullptr;
+        Ref<CCNode> m_precNode = nullptr;
+        int m_lastPrecIndex = -1;
+        bool m_wasCalculating = false;
+        std::vector<Ref<CCNode>> m_activeMarkers;
+        std::map<int, Ref<CCLabelBMFont>> m_countLabels;
     };
 
     bool init(GJGameLevel * level, bool useReplay, bool dontCreateObjects) {
@@ -80,13 +80,11 @@ class $modify(MyPlayLayer, PlayLayer) {
         m_fields->m_lastPrecIndex = -1;
         m_fields->m_hudCounts.clear();
 
-        // 清空存活标记
         for (auto& marker : m_fields->m_activeMarkers) {
             if (marker) marker->removeFromParent();
         }
         m_fields->m_activeMarkers.clear();
 
-        // 重新统计复活点之前的 HUD 数据
         for (const auto& action : g_tickActionsCache) {
             if (action.shouldDraw && action.frame < currentFrame) {
                 double fw = action.frameWindow;
@@ -351,7 +349,6 @@ class $modify(MyPlayLayer, PlayLayer) {
                 int currentFrame = static_cast<int>(this->m_gameState.m_levelTime * g_macroFps);
                 this->updatePrecisionHUD(currentFrame);
 
-                // 1. 真正的时间倒退（读档、练习模式重试、死亡回退）
                 if (currentFrame < m_fields->m_lastFrame) {
                     m_fields->m_lastFrame = currentFrame;
                     m_fields->m_hudCounts.clear();
@@ -374,7 +371,6 @@ class $modify(MyPlayLayer, PlayLayer) {
                     }
                     this->updateHUDCounts();
                 }
-                // 2. 正常时间向前推进：处理 (m_lastFrame, currentFrame] 区间
                 else if (currentFrame > m_fields->m_lastFrame) {
                     bool skipAudio = (currentFrame - m_fields->m_lastFrame > static_cast<int>(g_macroFps));
                     bool needsHudUpdate = false;
@@ -387,16 +383,22 @@ class $modify(MyPlayLayer, PlayLayer) {
                         if (action.shouldDraw) {
                             double fw = action.frameWindow;
                             ccColor4F markerColor = { 1.f, 1.f, 1.f, 1.f };
+                            std::string markerText = formatWindowVal(fw);
+
                             std::string fwStr = formatWindowVal(fw);
                             if (g_windowPresets.contains(fwStr)) {
-                                markerColor = g_windowPresets[fwStr].color;
+                                auto& preset = g_windowPresets[fwStr];
+                                markerColor = preset.color;
+                                if (!preset.customText.empty()) {
+                                    markerText = preset.customText; 
+                                }
                             }
 
                             CCPoint spawnPos = this->m_player1->getPosition();
                             if (action.isPlayer2 && this->m_player2) {
                                 spawnPos = this->m_player2->getPosition();
                             }
-                            this->spawnFrameWindowMarker(spawnPos, fw, markerColor);
+                            this->spawnFrameWindowMarker(spawnPos, markerText, markerColor);
 
                             for (auto& [idStr, preset] : g_labelPresets) {
                                 if (fw >= preset.minVal && fw <= preset.maxVal) {
@@ -422,7 +424,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
-    void spawnFrameWindowMarker(CCPoint pos, double frameWindow, ccColor4F color) {
+    void spawnFrameWindowMarker(CCPoint pos, const std::string & displayStr, ccColor4F color) {
         auto markerNode = CCNode::create();
         markerNode->setPosition(pos);
         markerNode->setZOrder(9999);
@@ -441,13 +443,11 @@ class $modify(MyPlayLayer, PlayLayer) {
         float g = color.g * a;
         float b = color.b * a;
 
-        // 绘制黑色描边底圈与主体颜色圈
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 4.f, { 0.f, 0.f, 0.f, color.a });
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 2.f, { r, g, b, a });
         markerNode->addChild(circle);
 
-        std::string labelStr = (std::abs(frameWindow) < 1e-6) ? "S" : formatWindowVal(frameWindow);
-        auto label = CCLabelBMFont::create(labelStr.c_str(), "bigFont.fnt");
+        auto label = CCLabelBMFont::create(displayStr.c_str(), "bigFont.fnt");
         label->setAnchorPoint({ 1.f, 0.5f });
         label->setPosition({ -18.f, 0.f });
         label->setScale(0.5f);

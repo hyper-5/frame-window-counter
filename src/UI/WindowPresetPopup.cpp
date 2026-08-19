@@ -7,27 +7,38 @@
 using namespace geode::prelude;
 
 bool WindowPresetPopup::init() {
-    if (!Popup::init(300.f, 200.f)) return false;
-    this->setTitle("Window Color Settings");
+    if (!Popup::init(320.f, 230.f)) return false;
+    this->setTitle("Window Preset Settings");
 
     auto size = m_mainLayer->getContentSize();
-    float centerX = size.width / 2;
+    float centerX = size.width / 2.f;
 
     auto menu = CCMenu::create();
     menu->setPosition({ 0, 0 });
     m_mainLayer->addChild(menu);
 
-    m_winInput = TextInput::create(140.f, "Window (e.g. 4)");
-    m_winInput->setPosition({ centerX - 50.f, 130.f });
+    // 1. Window 输入框与 Load 按钮
+    m_winInput = TextInput::create(110.f, "Win (e.g. 4.5)");
+    m_winInput->setPosition({ centerX - 45.f, 165.f });
     m_winInput->setFilter("0123456789.");
     m_mainLayer->addChild(m_winInput);
 
-    auto loadBtn = CCMenuItemSpriteExtra::create(ButtonSprite::create("Load"), this, menu_selector(WindowPresetPopup::onLoad));
-    loadBtn->setPosition({ centerX + 60.f, 130.f });
+    auto loadBtnSpr = ButtonSprite::create("Load");
+    loadBtnSpr->setScale(0.7f);
+    auto loadBtn = CCMenuItemSpriteExtra::create(loadBtnSpr, this, menu_selector(WindowPresetPopup::onLoad));
+    loadBtn->setPosition({ centerX + 65.f, 165.f });
     menu->addChild(loadBtn);
 
+    // 2. 自定义文本输入框
+    m_textInput = TextInput::create(220.f, "Custom Text (Default: Win)");
+    m_textInput->setPosition({ centerX, 125.f });
+    m_textInput->setFilter("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~");
+    m_textInput->setCallback([this](std::string const&) { this->autoSave(); });
+    m_mainLayer->addChild(m_textInput);
+
+    // 3. 颜色选择按钮
     auto colorLabel = CCLabelBMFont::create("Circle Color:", "bigFont.fnt");
-    colorLabel->setScale(0.5f);
+    colorLabel->setScale(0.45f);
     colorLabel->setPosition({ centerX - 40.f, 80.f });
     m_mainLayer->addChild(colorLabel);
 
@@ -42,23 +53,40 @@ bool WindowPresetPopup::init() {
     colorWrapper->setScale(0.65f);
 
     auto colorBtn = CCMenuItemSpriteExtra::create(colorWrapper, this, menu_selector(WindowPresetPopup::onColorBtn));
-    colorBtn->setPosition({ centerX + 40.f, 80.f });
+    colorBtn->setPosition({ centerX + 45.f, 80.f });
     menu->addChild(colorBtn);
 
-    auto switchBtnSpr = ButtonSprite::create("<- Back to Frames");
-    switchBtnSpr->setScale(0.7f);
+    // 4. 底部返回与全部重置按钮
+    auto switchBtnSpr = ButtonSprite::create("<- Back");
+    switchBtnSpr->setScale(0.6f);
     auto switchBtn = CCMenuItemSpriteExtra::create(switchBtnSpr, this, menu_selector(WindowPresetPopup::onSwitchToFrames));
-    switchBtn->setPosition({ centerX, 30.f });
+    switchBtn->setPosition({ centerX - 70.f, 30.f });
     menu->addChild(switchBtn);
+
+    auto resetBtnSpr = ButtonSprite::create("Reset All");
+    resetBtnSpr->setScale(0.6f);
+    auto resetBtn = CCMenuItemSpriteExtra::create(resetBtnSpr, this, menu_selector(WindowPresetPopup::onResetAll));
+    resetBtn->setPosition({ centerX + 70.f, 30.f });
+    menu->addChild(resetBtn);
 
     return true;
 }
 
 void WindowPresetPopup::onLoad(CCObject*) {
     std::string winStr = m_winInput->getString();
-    if (g_windowPresets.contains(winStr)) {
-        auto& p = g_windowPresets[winStr];
+    if (winStr.empty()) return;
+
+    double winVal = 1.0;
+    try { winVal = std::stod(winStr); }
+    catch (...) { winVal = 1.0; }
+
+    std::string normalizedKey = formatWindowVal(winVal);
+
+    if (g_windowPresets.contains(normalizedKey)) {
+        auto& p = g_windowPresets[normalizedKey];
         m_currentColor = p.color;
+        if (m_textInput) m_textInput->setString(p.customText);
+
         if (m_colorSprite) {
             m_colorSprite->setColor({
                 static_cast<GLubyte>(p.color.r * 255),
@@ -70,6 +98,8 @@ void WindowPresetPopup::onLoad(CCObject*) {
     }
     else {
         m_currentColor = { 1.f, 1.f, 1.f, 1.f };
+        if (m_textInput) m_textInput->setString("");
+
         if (m_colorSprite) {
             m_colorSprite->setColor({ 255, 255, 255 });
             m_colorSprite->setOpacity(255);
@@ -112,13 +142,49 @@ void WindowPresetPopup::autoSave() {
     std::string winStr = m_winInput->getString();
     if (winStr.empty()) return;
 
-    FrameWindowPreset p;
-    try { p.window = std::stoi(winStr); }
-    catch (...) { p.window = 1; }
-    p.color = m_currentColor;
+    double winVal = 1.0;
+    try { winVal = std::stod(winStr); }
+    catch (...) { winVal = 1.0; }
 
-    g_windowPresets[winStr] = p;
+    FrameWindowPreset p;
+    p.window = winVal;
+    p.color = m_currentColor;
+    p.customText = m_textInput ? m_textInput->getString() : "";
+
+    std::string normalizedKey = formatWindowVal(p.window);
+    g_windowPresets[normalizedKey] = p;
     saveSettings();
+}
+
+void WindowPresetPopup::onResetAll(CCObject*) {
+    Ref<WindowPresetPopup> safeThis = this;
+
+    auto alert = geode::createQuickPopup(
+        "Reset Window Presets",
+        "Are you sure you want to reset <cr>ALL</c> window presets (colors and custom texts)?",
+        "Cancel", "Reset",
+        [safeThis](auto, bool btn2) {
+            if (btn2) {
+                g_windowPresets.clear();
+                saveSettings();
+                triggerHUDRefresh();
+
+                if (safeThis && safeThis->getParent()) {
+                    safeThis->m_currentColor = { 1.f, 1.f, 1.f, 1.f };
+                    if (safeThis->m_textInput) safeThis->m_textInput->setString("");
+                    if (safeThis->m_colorSprite) {
+                        safeThis->m_colorSprite->setColor({ 255, 255, 255 });
+                        safeThis->m_colorSprite->setOpacity(255);
+                    }
+                }
+
+                auto successAlert = FLAlertLayer::create("Success", "All window presets have been reset.", "OK");
+                successAlert->show();
+                stopAlertAnimation(successAlert);
+            }
+        }
+    );
+    stopAlertAnimation(alert);
 }
 
 void WindowPresetPopup::onSwitchToFrames(CCObject*) {

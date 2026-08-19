@@ -12,6 +12,7 @@ struct MyReplay : gdr::Replay<MyReplay, gdr::Input<>> {
 struct FrameWindowPreset {
     double window = 1.0;
     cocos2d::ccColor4F color = { 1.f, 1.f, 1.f, 1.f };
+    std::string customText = ""; 
 };
 
 template <>
@@ -24,6 +25,7 @@ struct matjson::Serialize<FrameWindowPreset> {
         p.color.g = static_cast<float>(value["g"].asDouble().unwrapOr(1.0));
         p.color.b = static_cast<float>(value["b"].asDouble().unwrapOr(1.0));
         p.color.a = static_cast<float>(value["a"].asDouble().unwrapOr(1.0));
+        p.customText = value["customText"].asString().unwrapOr("");
         return geode::Ok(p);
     }
     static matjson::Value toJson(FrameWindowPreset const& p) {
@@ -32,7 +34,8 @@ struct matjson::Serialize<FrameWindowPreset> {
             {"r", static_cast<double>(p.color.r)},
             {"g", static_cast<double>(p.color.g)},
             {"b", static_cast<double>(p.color.b)},
-            {"a", static_cast<double>(p.color.a)}
+            {"a", static_cast<double>(p.color.a)},
+            {"customText", p.customText}
             });
     }
 };
