@@ -82,7 +82,7 @@ void loadModData() {
     for (int i = 0; i <= 99; i++) {
         std::string key = std::to_string(i);
         if (!g_labelPresets.contains(key)) {
-            LabelPreset p = { i, "", "", std::to_string(i), "", {1.f, 1.f, 1.f, 1.f}, false };
+            LabelPreset p = { i, 0, "", "", std::to_string(i), "", {1.f, 1.f, 1.f, 1.f}, false };
             p.updateBounds();
             g_labelPresets[key] = p;
         }
@@ -171,10 +171,12 @@ void doAutoSave(GJGameLevel* level) {
                 int32_t frame = act.frame;
                 double frameWindow = act.frameWindow;
                 uint8_t flags = (act.shouldDraw ? 1 : 0) | (act.isPlayer2 ? 2 : 0);
+                int32_t swift = act.swift;
 
                 f.write(reinterpret_cast<const char*>(&frame), sizeof(int32_t));
                 f.write(reinterpret_cast<const char*>(&frameWindow), sizeof(double));
                 f.write(reinterpret_cast<const char*>(&flags), sizeof(uint8_t));
+                f.write(reinterpret_cast<const char*>(&swift), sizeof(int32_t));
             }
             f.close();
             geode::Loader::get()->queueInMainThread([]() {

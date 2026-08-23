@@ -13,7 +13,7 @@
 using namespace geode::prelude;
 
 bool LabelPresetPopup::init() {
-    if (!Popup::init(380.f, 280.f)) return false;
+    if (!Popup::init(400.f, 280.f)) return false;
     this->setTitle("Label Interval Settings (0-99)");
 
     auto size = m_mainLayer->getContentSize();
@@ -23,35 +23,54 @@ bool LabelPresetPopup::init() {
     menu->setPosition({ 0, 0 });
     m_mainLayer->addChild(menu);
 
-    m_idInput = TextInput::create(80.f, "ID(0-99)");
-    m_idInput->setPosition({ centerX - 80.f, 235.f });
+    // ----------------- 第一行：ID 与 LOAD -----------------
+    auto idLbl = CCLabelBMFont::create("ID:", "bigFont.fnt");
+    idLbl->setScale(0.45f);
+    idLbl->setPosition({ centerX - 90.f, 235.f });
+    m_mainLayer->addChild(idLbl);
+
+    m_idInput = TextInput::create(60.f, "0");
+    m_idInput->setPosition({ centerX - 35.f, 235.f });
     m_idInput->setFilter("0123456789");
     m_idInput->setString("0");
     m_mainLayer->addChild(m_idInput);
 
     auto loadBtn = CCMenuItemSpriteExtra::create(ButtonSprite::create("Load"), this, menu_selector(LabelPresetPopup::onLoad));
-    loadBtn->setPosition({ centerX + 80.f, 235.f });
+    loadBtn->setPosition({ centerX + 65.f, 235.f });
     menu->addChild(loadBtn);
 
+    // ----------------- 第二行：Swift、Min Win 与 Max Win -----------------
+    auto swiftLbl = CCLabelBMFont::create("Swift:", "bigFont.fnt");
+    swiftLbl->setScale(0.38f);
+    swiftLbl->setPosition({ centerX - 145.f, 195.f });
+    m_mainLayer->addChild(swiftLbl);
+
+    m_swiftInput = TextInput::create(40.f, "0");
+    m_swiftInput->setPosition({ centerX - 105.f, 195.f });
+    m_swiftInput->setFilter("0123456789");
+    m_swiftInput->setString("0");
+    m_swiftInput->setCallback([this](std::string const&) { this->autoSave(); });
+    m_mainLayer->addChild(m_swiftInput);
+
     auto minLbl = CCLabelBMFont::create("Min Win:", "bigFont.fnt");
-    minLbl->setScale(0.4f);
-    minLbl->setPosition({ centerX - 125.f, 195.f });
+    minLbl->setScale(0.38f);
+    minLbl->setPosition({ centerX - 55.f, 195.f });
     m_mainLayer->addChild(minLbl);
 
-    m_minInput = TextInput::create(70.f, "0");
-    m_minInput->setPosition({ centerX - 60.f, 195.f });
-    m_minInput->setFilter("0123456789.");
+    m_minInput = TextInput::create(50.f, "0");
+    m_minInput->setPosition({ centerX - 5.f, 195.f });
+    m_minInput->setFilter("0123456789./");
     m_minInput->setCallback([this](std::string const&) { this->autoSave(); });
     m_mainLayer->addChild(m_minInput);
 
     auto maxLbl = CCLabelBMFont::create("Max Win:", "bigFont.fnt");
-    maxLbl->setScale(0.4f);
-    maxLbl->setPosition({ centerX + 15.f, 195.f });
+    maxLbl->setScale(0.38f);
+    maxLbl->setPosition({ centerX + 55.f, 195.f });
     m_mainLayer->addChild(maxLbl);
 
-    m_maxInput = TextInput::create(70.f, "999999");
-    m_maxInput->setPosition({ centerX + 80.f, 195.f });
-    m_maxInput->setFilter("0123456789.");
+    m_maxInput = TextInput::create(60.f, "999999");
+    m_maxInput->setPosition({ centerX + 115.f, 195.f });
+    m_maxInput->setFilter("0123456789./");
     m_maxInput->setCallback([this](std::string const&) { this->autoSave(); });
     m_mainLayer->addChild(m_maxInput);
 
@@ -128,14 +147,11 @@ bool LabelPresetPopup::init() {
 }
 
 void LabelPresetPopup::onApplyColorToWins(CCObject*) {
-    int minV = 0, maxV = 999999;
     std::string minStr = m_minInput->getString();
     std::string maxStr = m_maxInput->getString();
 
-    try { minV = minStr.empty() ? 0 : std::stoi(minStr); }
-    catch (...) { minV = 0; }
-    try { maxV = maxStr.empty() ? 999999 : std::stoi(maxStr); }
-    catch (...) { maxV = 999999; }
+    int minV = static_cast<int>(std::round(parseWindowExpr(minStr, 0.0)));
+    int maxV = static_cast<int>(std::round(parseWindowExpr(maxStr, 999999.0)));
 
     if (minV < 0) minV = 0;
     if (minV > maxV) {
@@ -149,19 +165,25 @@ void LabelPresetPopup::onApplyColorToWins(CCObject*) {
         return;
     }
 
+    int swiftVal = 0;
+    try { swiftVal = std::stoi(m_swiftInput->getString()); }
+    catch (...) { swiftVal = 0; }
+    if (swiftVal < 0) swiftVal = 0;
+
     int count = 0;
     for (int i = minV; i <= maxV; i++) {
         FrameWindowPreset p;
+        p.swift = swiftVal;
         p.window = i;
         p.color = m_currentColor;
-        g_windowPresets[std::to_string(i)] = p;
+        g_windowPresets[makeWindowPresetKey(swiftVal, i)] = p;
         count++;
     }
 
     saveSettings();
     triggerHUDRefresh();
 
-    auto alert = FLAlertLayer::create("Success", fmt::format("Successfully applied this color to {} windows ({} - {})!", count, minV, maxV), "OK");
+    auto alert = FLAlertLayer::create("Success", fmt::format("Applied color to {} windows ({} - {}) under Swift {}!", count, minV, maxV, swiftVal), "OK");
     alert->show(); stopAlertAnimation(alert);
 }
 
@@ -250,6 +272,9 @@ void LabelPresetPopup::autoSave() {
     LabelPreset p;
     try { p.id = std::stoi(idStr); }
     catch (...) { p.id = 0; }
+    try { p.swift = std::stoi(m_swiftInput->getString()); }
+    catch (...) { p.swift = 0; }
+    if (p.swift < 0) p.swift = 0;
     p.minWindowStr = m_minInput->getString();
     p.maxWindowStr = m_maxInput->getString();
     p.text = m_textInput->getString();
@@ -268,6 +293,7 @@ void LabelPresetPopup::onLoad(CCObject*) {
     std::string idStr = m_idInput->getString();
     if (g_labelPresets.contains(idStr)) {
         auto& p = g_labelPresets[idStr];
+        m_swiftInput->setString(std::to_string(p.swift));
         m_minInput->setString(p.minWindowStr);
         m_maxInput->setString(p.maxWindowStr);
         m_textInput->setString(p.text);
@@ -293,13 +319,13 @@ void LabelPresetPopup::onResetAll(CCObject*) {
 
     auto alert = geode::createQuickPopup(
         "Reset All Labels",
-        "Are you sure you want to reset <cr>ALL 100 labels</c> to empty limits?",
+        "Are you sure you want to reset <cr>ALL 100 labels</c>?",
         "Cancel", "Reset",
         [safeThis](auto, bool btn2) {
             if (btn2) {
                 g_labelPresets.clear();
                 for (int i = 0; i <= 99; i++) {
-                    LabelPreset p = { i, "", "", std::to_string(i), "", {1.f, 1.f, 1.f, 1.f}, false };
+                    LabelPreset p = { i, 0, "", "", std::to_string(i), "", {1.f, 1.f, 1.f, 1.f}, false };
                     p.updateBounds();
                     g_labelPresets[std::to_string(i)] = p;
                 }
@@ -320,7 +346,7 @@ void LabelPresetPopup::onResetAll(CCObject*) {
 }
 
 void LabelPresetPopup::onSwitchToFrames(CCObject*) {
-    this->onClose(nullptr);
+    this->removeFromParentAndCleanup(true);
     auto popup = FrameActionPopup::create();
     if (popup) {
         popup->setID("FrameActionPopup"_spr);
@@ -351,5 +377,5 @@ void LabelPresetPopup::showInstant() {
 }
 
 void LabelPresetPopup::instantClose() {
-    this->onClose(nullptr);
+    this->removeFromParentAndCleanup(true);
 }

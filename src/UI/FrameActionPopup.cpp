@@ -471,6 +471,13 @@ void FrameActionPopup::refreshList(bool rebuildKeys) {
                 std::string winStr = formatWindowVal(action.frameWindow);
                 if (winInput->getString() != winStr) winInput->setString(winStr);
             }
+
+            // 同步 Swift 输入框值
+            if (auto swiftInput = static_cast<TextInput*>(cell->getChildByID("swift-input"_spr))) {
+                swiftInput->setUserObject(cocos2d::CCString::create(actionKey));
+                std::string swStr = std::to_string(action.swift);
+                if (swiftInput->getString() != swStr) swiftInput->setString(swStr);
+            }
         }
         else {
             cell->setVisible(false);
@@ -498,15 +505,15 @@ CCNode* FrameActionPopup::createCellTemplate(int index) {
 
     auto frameText = CCLabelBMFont::create("Frame: 0", "chatFont.fnt");
     frameText->setAnchorPoint({ 0.f, 0.5f });
-    frameText->setPosition({ 10.f, 20.f });
-    frameText->setScale(0.55f);
+    frameText->setPosition({ 8.f, 20.f });
+    frameText->setScale(0.5f);
     frameText->setID("frame-text"_spr);
     cell->addChild(frameText);
 
     auto pToggleSpr = ButtonSprite::create("1P");
-    pToggleSpr->setScale(0.45f);
+    pToggleSpr->setScale(0.42f);
     auto pToggleBtn = CCMenuItemSpriteExtra::create(pToggleSpr, this, menu_selector(FrameActionPopup::onTogglePlayer));
-    pToggleBtn->setPosition({ 90.f, 20.f });
+    pToggleBtn->setPosition({ 76.f, 20.f });
     pToggleBtn->setID("p-toggle-btn"_spr);
     menu->addChild(pToggleBtn);
 
@@ -515,45 +522,73 @@ CCNode* FrameActionPopup::createCellTemplate(int index) {
         CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png"),
         this, menu_selector(FrameActionPopup::onToggleDraw)
     );
-    drawToggle->setPosition({ 135.f, 20.f });
-    drawToggle->setScale(0.7f);
+    drawToggle->setPosition({ 110.f, 20.f });
+    drawToggle->setScale(0.65f);
     drawToggle->setID("draw-toggle"_spr);
     menu->addChild(drawToggle);
 
     auto typeText = CCLabelBMFont::create("Frame Window:", "chatFont.fnt");
     typeText->setAnchorPoint({ 0.f, 0.5f });
-    typeText->setPosition({ 200.f, 20.f });
-    typeText->setScale(0.5f);
+    typeText->setPosition({ 145.f, 20.f });
+    typeText->setScale(0.45f);
     cell->addChild(typeText);
 
-    auto labelIdInput = TextInput::create(50.f, "Win");
-    labelIdInput->setFilter("0123456789.");
-    labelIdInput->setPosition({ 315.f, 20.f });
-    labelIdInput->setID("win-input"_spr);
-
-    labelIdInput->setCallback([labelIdInput](std::string const& text) {
-        auto strObj = static_cast<cocos2d::CCString*>(labelIdInput->getUserObject());
+    auto winInput = TextInput::create(42.f, "1");
+    winInput->setFilter("0123456789./");
+    winInput->setPosition({ 215.f, 20.f });
+    winInput->setScale(0.85f);
+    winInput->setID("win-input"_spr);
+    winInput->setCallback([winInput](std::string const& text) {
+        auto strObj = static_cast<cocos2d::CCString*>(winInput->getUserObject());
         if (!strObj) return;
         std::string actionKey = strObj->getCString();
 
         if (g_frameActions.contains(actionKey)) {
-            double fwVal = 1.0;
-            if (!text.empty()) {
-                try { fwVal = std::stod(text); }
-                catch (...) { fwVal = 1.0; }
-            }
+            double fwVal = parseWindowExpr(text, 1.0);
             if (std::abs(g_frameActions[actionKey].frameWindow - fwVal) > 1e-6) {
                 g_frameActions[actionKey].frameWindow = fwVal;
                 saveFrames();
             }
         }
         });
-    cell->addChild(labelIdInput);
+    cell->addChild(winInput);
+
+    auto swiftText = CCLabelBMFont::create("Swift:", "chatFont.fnt");
+    swiftText->setAnchorPoint({ 0.f, 0.5f });
+    swiftText->setPosition({ 260.f, 20.f });
+    swiftText->setScale(0.45f);
+    cell->addChild(swiftText);
+
+    auto swiftInput = TextInput::create(38.f, "0");
+    swiftInput->setFilter("0123456789");
+    swiftInput->setPosition({ 305.f, 20.f });
+    swiftInput->setScale(0.85f);
+    swiftInput->setID("swift-input"_spr);
+    swiftInput->setCallback([swiftInput](std::string const& text) {
+        auto strObj = static_cast<cocos2d::CCString*>(swiftInput->getUserObject());
+        if (!strObj) return;
+        std::string actionKey = strObj->getCString();
+
+        if (g_frameActions.contains(actionKey)) {
+            int swVal = 0;
+            if (!text.empty()) {
+                try { swVal = std::stoi(text); }
+                catch (...) { swVal = 0; }
+            }
+            if (swVal < 0) swVal = 0;
+            if (g_frameActions[actionKey].swift != swVal) {
+                g_frameActions[actionKey].swift = swVal;
+                updateTickCache();
+                triggerHUDRefresh();
+            }
+        }
+        });
+    cell->addChild(swiftInput);
 
     auto delRowSpr = CCSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png");
-    delRowSpr->setScale(0.6f);
+    delRowSpr->setScale(0.55f);
     auto delRowBtn = CCMenuItemSpriteExtra::create(delRowSpr, this, menu_selector(FrameActionPopup::onDeleteFrame));
-    delRowBtn->setPosition({ 370.f, 20.f });
+    delRowBtn->setPosition({ 360.f, 20.f });
     delRowBtn->setID("del-btn"_spr);
     menu->addChild(delRowBtn);
 
@@ -589,7 +624,7 @@ void FrameActionPopup::onTogglePlayer(CCObject* sender) {
     auto it = std::lower_bound(g_tickActionsCache.begin(), g_tickActionsCache.end(), action.frame,
         [](const FrameAction& a, int frame) { return a.frame < frame; });
     while (it != g_tickActionsCache.end() && it->frame == action.frame) {
-        if (it->isPlayer2 != isP2 && std::abs(it->frameWindow - action.frameWindow) < 1e-6) {
+        if (it->isPlayer2 != isP2 && std::abs(it->frameWindow - action.frameWindow) < 1e-6 && it->swift == action.swift) {
             it->isPlayer2 = isP2;
             break;
         }

@@ -61,7 +61,8 @@ namespace FileIO {
                             arr.push_back(matjson::makeObject({
                                 {"input", inputCounter++},
                                 {"timePosition", act.frame},
-                                {"frameWindow", (act.frameWindow <= 0.0) ? 1.0 : act.frameWindow}
+                                {"frameWindow", (act.frameWindow <= 0.0) ? 1.0 : act.frameWindow},
+                                {"swift", act.swift}
                                 }));
                         }
                         matjson::Value rootObject = matjson::makeObject({
@@ -78,7 +79,7 @@ namespace FileIO {
                         f << rootObject.dump(2);
                     }
                     else {
-                        // 新版 FWC2: 支持 8 字节 double
+                        // 写入 FWC2：带有 swift (4 字节 int32_t)
                         f.write("FWC2", 4);
                         double fps = g_macroFps;
                         f.write(reinterpret_cast<const char*>(&fps), sizeof(double));
@@ -89,9 +90,12 @@ namespace FileIO {
                             int32_t frame = act.frame;
                             double frameWindow = act.frameWindow;
                             uint8_t flags = (act.shouldDraw ? 1 : 0) | (act.isPlayer2 ? 2 : 0);
+                            int32_t swift = act.swift;
+
                             f.write(reinterpret_cast<const char*>(&frame), sizeof(int32_t));
                             f.write(reinterpret_cast<const char*>(&frameWindow), sizeof(double));
                             f.write(reinterpret_cast<const char*>(&flags), sizeof(uint8_t));
+                            f.write(reinterpret_cast<const char*>(&swift), sizeof(int32_t));
                         }
                     }
                     f.close();
@@ -163,9 +167,9 @@ namespace FileIO {
                             int32_t frame = 0;
                             double frameWindow = 1.0;
                             uint8_t flags = 0;
+                            int32_t swift = 0;
 
                             f.read(reinterpret_cast<char*>(&frame), sizeof(int32_t));
-							//兼容旧版本 FWC 文件，旧版本使用 4 字节 int32_t 存储 frameWindow
                             if (isLegacy) {
                                 int32_t legacyWindow = 1;
                                 f.read(reinterpret_cast<char*>(&legacyWindow), sizeof(int32_t));
@@ -176,7 +180,12 @@ namespace FileIO {
                             }
                             f.read(reinterpret_cast<char*>(&flags), sizeof(uint8_t));
 
-                            newActions.push_back({ frame, (flags & 1) != 0, frameWindow, (flags & 2) != 0 });
+                            // 非旧版 FWCB 时读取 swift 维度
+                            if (!isLegacy) {
+                                f.read(reinterpret_cast<char*>(&swift), sizeof(int32_t));
+                            }
+
+                            newActions.push_back({ frame, (flags & 1) != 0, frameWindow, (flags & 2) != 0, swift });
                         }
                     }
                     else if (ext == ".json") {
@@ -197,6 +206,7 @@ namespace FileIO {
                                     act.shouldDraw = true;
                                     act.frameWindow = item["frameWindow"].asDouble().unwrapOr(1.0);
                                     act.isPlayer2 = false;
+                                    act.swift = item["swift"].asInt().unwrapOr(0);
                                     newActions.push_back(act);
                                 }
                             }
@@ -214,7 +224,7 @@ namespace FileIO {
                         for (const auto& atomVariant : replay.m_atoms.m_atoms) {
                             if (const auto* actionAtom = std::get_if<slc::ActionAtom>(&atomVariant)) {
                                 for (const auto& action : actionAtom->m_actions) {
-                                    newActions.push_back({ static_cast<int>(action.m_frame), false, 1.0, action.m_player2 });
+                                    newActions.push_back({ static_cast<int>(action.m_frame), false, 1.0, action.m_player2, 0 });
                                 }
                             }
                         }
@@ -248,7 +258,7 @@ namespace FileIO {
                         }
                         std::sort(inputs.begin(), inputs.end(), [](const auto& a, const auto& b) { return a.frame < b.frame; });
                         for (const auto& input : inputs) {
-                            newActions.push_back({ static_cast<int>(input.frame), false, 1.0, input.player2 });
+                            newActions.push_back({ static_cast<int>(input.frame), false, 1.0, input.player2, 0 });
                         }
                     }
 

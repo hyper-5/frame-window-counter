@@ -7,7 +7,7 @@
 using namespace geode::prelude;
 
 bool WindowPresetPopup::init() {
-    if (!Popup::init(320.f, 230.f)) return false;
+    if (!Popup::init(340.f, 230.f)) return false;
     this->setTitle("Window Preset Settings");
 
     auto size = m_mainLayer->getContentSize();
@@ -17,25 +17,42 @@ bool WindowPresetPopup::init() {
     menu->setPosition({ 0, 0 });
     m_mainLayer->addChild(menu);
 
+    // 0.Swift输入框
+    auto swiftLbl = CCLabelBMFont::create("Sw:", "bigFont.fnt");
+    swiftLbl->setScale(0.4f);
+    swiftLbl->setPosition({ centerX - 120.f, 165.f });
+    m_mainLayer->addChild(swiftLbl);
+
+    m_swiftInput = TextInput::create(45.f, "0");
+    m_swiftInput->setPosition({ centerX - 85.f, 165.f });
+    m_swiftInput->setFilter("0123456789");
+    m_swiftInput->setString("0");
+    m_mainLayer->addChild(m_swiftInput);
+
     // 1. Window 输入框与 Load 按钮
-    m_winInput = TextInput::create(110.f, "Win (e.g. 4.5)");
-    m_winInput->setPosition({ centerX - 45.f, 165.f });
-    m_winInput->setFilter("0123456789.");
+    auto winLbl = CCLabelBMFont::create("Win:", "bigFont.fnt");
+    winLbl->setScale(0.4f);
+    winLbl->setPosition({ centerX - 35.f, 165.f });
+    m_mainLayer->addChild(winLbl);
+
+    m_winInput = TextInput::create(55.f, "1");
+    m_winInput->setPosition({ centerX + 10.f, 165.f });
+    m_winInput->setFilter("0123456789./");
+    m_winInput->setString("1");
     m_mainLayer->addChild(m_winInput);
 
     auto loadBtnSpr = ButtonSprite::create("Load");
-    loadBtnSpr->setScale(0.7f);
+    loadBtnSpr->setScale(0.65f);
     auto loadBtn = CCMenuItemSpriteExtra::create(loadBtnSpr, this, menu_selector(WindowPresetPopup::onLoad));
-    loadBtn->setPosition({ centerX + 65.f, 165.f });
+    loadBtn->setPosition({ centerX + 95.f, 165.f });
     menu->addChild(loadBtn);
 
     // 2. 自定义文本输入框
-    m_textInput = TextInput::create(220.f, "Custom Text (Default: Win)");
+    m_textInput = TextInput::create(230.f, "Custom Text (Default: Win)");
     m_textInput->setPosition({ centerX, 125.f });
     m_textInput->setFilter("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~");
     m_textInput->setCallback([this](std::string const&) { this->autoSave(); });
     m_mainLayer->addChild(m_textInput);
-
     // 3. 颜色选择按钮
     auto colorLabel = CCLabelBMFont::create("Circle Color:", "bigFont.fnt");
     colorLabel->setScale(0.45f);
@@ -55,7 +72,6 @@ bool WindowPresetPopup::init() {
     auto colorBtn = CCMenuItemSpriteExtra::create(colorWrapper, this, menu_selector(WindowPresetPopup::onColorBtn));
     colorBtn->setPosition({ centerX + 45.f, 80.f });
     menu->addChild(colorBtn);
-
     // 4. 底部返回与全部重置按钮
     auto switchBtnSpr = ButtonSprite::create("<- Back");
     switchBtnSpr->setScale(0.6f);
@@ -69,18 +85,23 @@ bool WindowPresetPopup::init() {
     resetBtn->setPosition({ centerX + 70.f, 30.f });
     menu->addChild(resetBtn);
 
+    this->onLoad(nullptr);
     return true;
 }
 
 void WindowPresetPopup::onLoad(CCObject*) {
-    std::string winStr = m_winInput->getString();
+    std::string swStr = m_swiftInput ? m_swiftInput->getString() : "0";
+    std::string winStr = m_winInput ? m_winInput->getString() : "1";
     if (winStr.empty()) return;
 
-    double winVal = 1.0;
-    try { winVal = std::stod(winStr); }
-    catch (...) { winVal = 1.0; }
+    int swiftVal = 0;
+    try { swiftVal = std::stoi(swStr); }
+    catch (...) { swiftVal = 0; }
+    if (swiftVal < 0) swiftVal = 0;
 
-    std::string normalizedKey = formatWindowVal(winVal);
+    double winVal = parseWindowExpr(winStr, 1.0);
+
+    std::string normalizedKey = makeWindowPresetKey(swiftVal, winVal);
 
     if (g_windowPresets.contains(normalizedKey)) {
         auto& p = g_windowPresets[normalizedKey];
@@ -139,19 +160,24 @@ void WindowPresetPopup::onColorBtn(CCObject*) {
 }
 
 void WindowPresetPopup::autoSave() {
-    std::string winStr = m_winInput->getString();
+    std::string swStr = m_swiftInput ? m_swiftInput->getString() : "0";
+    std::string winStr = m_winInput ? m_winInput->getString() : "1";
     if (winStr.empty()) return;
 
-    double winVal = 1.0;
-    try { winVal = std::stod(winStr); }
-    catch (...) { winVal = 1.0; }
+    int swiftVal = 0;
+    try { swiftVal = std::stoi(swStr); }
+    catch (...) { swiftVal = 0; }
+    if (swiftVal < 0) swiftVal = 0;
+
+    double winVal = parseWindowExpr(winStr, 1.0);
 
     FrameWindowPreset p;
+    p.swift = swiftVal;
     p.window = winVal;
     p.color = m_currentColor;
     p.customText = m_textInput ? m_textInput->getString() : "";
 
-    std::string normalizedKey = formatWindowVal(p.window);
+    std::string normalizedKey = makeWindowPresetKey(swiftVal, winVal);
     g_windowPresets[normalizedKey] = p;
     saveSettings();
 }
@@ -161,7 +187,7 @@ void WindowPresetPopup::onResetAll(CCObject*) {
 
     auto alert = geode::createQuickPopup(
         "Reset Window Presets",
-        "Are you sure you want to reset <cr>ALL</c> window presets (colors and custom texts)?",
+        "Are you sure you want to reset <cr>ALL</c> window presets?",
         "Cancel", "Reset",
         [safeThis](auto, bool btn2) {
             if (btn2) {
@@ -188,7 +214,7 @@ void WindowPresetPopup::onResetAll(CCObject*) {
 }
 
 void WindowPresetPopup::onSwitchToFrames(CCObject*) {
-    this->instantClose();
+    this->removeFromParentAndCleanup(true);
     auto popup = FrameActionPopup::create();
     if (popup) {
         popup->setID("FrameActionPopup"_spr);

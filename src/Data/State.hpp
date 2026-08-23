@@ -41,6 +41,11 @@ inline std::string formatWindowVal(double val) {
     return oss.str();
 }
 
+// 生成二维 window 预设键：格式为 "swift_window"，例如 "1_5" 或 "2_5"
+inline std::string makeWindowPresetKey(int swift, double val) {
+    return std::to_string(swift) + "_" + formatWindowVal(val);
+}
+
 void loadModData();
 void saveSettings();
 void saveFrames();

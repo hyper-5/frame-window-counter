@@ -6,7 +6,7 @@ class PrecisionSettingsPopup : public geode::Popup {
 protected:
     cocos2d::CCLabelBMFont* m_calcBtnLabel = nullptr;
 
-    bool init();
+    bool init() override;
     void onTBase(cocos2d::CCObject*);
     void onTN(cocos2d::CCObject*);
     void onTF(cocos2d::CCObject*);

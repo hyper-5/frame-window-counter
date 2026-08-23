@@ -67,8 +67,9 @@ class $modify(MyPlayLayer, PlayLayer) {
         for (const auto& action : g_tickActionsCache) {
             if (action.shouldDraw && action.frame <= m_fields->m_lastFrame) {
                 double fw = action.frameWindow;
+                int sw = action.swift;
                 for (const auto& [idStr, preset] : g_labelPresets) {
-                    if (fw >= preset.minVal && fw <= preset.maxVal) {
+                    if (preset.swift == sw && fw >= preset.minVal && fw <= preset.maxVal) {
                         m_fields->m_hudCounts[preset.id]++;
                     }
                 }
@@ -98,8 +99,9 @@ class $modify(MyPlayLayer, PlayLayer) {
         for (const auto& action : g_tickActionsCache) {
             if (action.shouldDraw && action.frame <= m_fields->m_lastFrame) {
                 double fw = action.frameWindow;
+                int sw = action.swift;
                 for (const auto& [idStr, preset] : g_labelPresets) {
-                    if (fw >= preset.minVal && fw <= preset.maxVal) {
+                    if (preset.swift == sw && fw >= preset.minVal && fw <= preset.maxVal) {
                         m_fields->m_hudCounts[preset.id]++;
                     }
                 }
@@ -374,8 +376,9 @@ class $modify(MyPlayLayer, PlayLayer) {
                     for (const auto& action : g_tickActionsCache) {
                         if (action.shouldDraw && action.frame <= m_fields->m_lastFrame) {
                             double fw = action.frameWindow;
+                            int sw = action.swift;
                             for (const auto& [idStr, preset] : g_labelPresets) {
-                                if (fw >= preset.minVal && fw <= preset.maxVal) {
+                                if (preset.swift == sw && fw >= preset.minVal && fw <= preset.maxVal) {
                                     m_fields->m_hudCounts[preset.id]++;
                                 }
                             }
@@ -395,19 +398,22 @@ class $modify(MyPlayLayer, PlayLayer) {
                         auto& action = *it;
                         if (action.shouldDraw) {
                             double fw = action.frameWindow;
+                            int sw = action.swift;
                             ccColor4F markerColor = { 1.f, 1.f, 1.f, 1.f };
-                            std::string markerText = formatWindowVal(fw);
 
-                            std::string fwStr = formatWindowVal(fw);
-                            if (g_windowPresets.contains(fwStr)) {
-                                auto& preset = g_windowPresets[fwStr];
+                            std::string markerText = formatWindowVal(fw) + std::string(std::max(0, sw), '!');
+
+                            // 基于 (swift, window) 二维联合查询预设
+                            std::string presetKey = makeWindowPresetKey(sw, fw);
+                            if (g_windowPresets.contains(presetKey)) {
+                                auto& preset = g_windowPresets[presetKey];
                                 markerColor = preset.color;
                                 if (!preset.customText.empty()) {
                                     markerText = preset.customText;
                                 }
                             }
 
-                            // 1P 与 2P 分开判断：同一帧内仅允许各自生成首个圆圈
+                            // 1P 与 2P 独立去重，同帧只绘制第一个圆圈
                             bool shouldSpawnMarker = false;
                             if (!action.isPlayer2) {
                                 if (action.frame != m_fields->m_lastSpawnFrame1P) {
@@ -430,9 +436,9 @@ class $modify(MyPlayLayer, PlayLayer) {
                                 this->spawnFrameWindowMarker(spawnPos, markerText, markerColor);
                             }
 
-                            // HUD 与音效依然对同帧所有操作保持正常触发
+                            // HUD 与音效：必须满足 swift 相同且在 window 范围内
                             for (auto& [idStr, preset] : g_labelPresets) {
-                                if (fw >= preset.minVal && fw <= preset.maxVal) {
+                                if (preset.swift == sw && fw >= preset.minVal && fw <= preset.maxVal) {
                                     if (!skipAudio && !preset.audioPath.empty() && preset.showInHud) {
                                         SoundManager::playSound(preset.audioPath);
                                     }
