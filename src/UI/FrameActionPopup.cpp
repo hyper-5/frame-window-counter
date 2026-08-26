@@ -337,8 +337,8 @@ void FrameActionPopup::onToggleMod(CCObject* sender) {
             if (pl->m_uiLayer) {
                 if (auto prec = pl->m_uiLayer->getChildByID("frame-window-prec"_spr)) prec->removeFromParent();
             }
-            if (pl->m_objectLayer) {
-                auto children = pl->m_objectLayer->getChildren();
+            if (pl->m_uiLayer) {
+                auto children = pl->m_uiLayer->getChildren();
                 if (children) {
                     for (int i = children->count() - 1; i >= 0; i--) {
                         auto child = static_cast<CCNode*>(children->objectAtIndex(i));

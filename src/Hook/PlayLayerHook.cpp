@@ -10,6 +10,11 @@
 
 using namespace geode::prelude;
 
+struct ActiveMarker {
+    Ref<CCNode> node;
+    CCPoint worldPos;
+};
+
 class $modify(MyPlayLayer, PlayLayer) {
     struct Fields {
         int m_lastFrame = -1;                                   // 初始设为 -1，保证第 0 帧能够触发
@@ -18,7 +23,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         Ref<CCNode> m_precNode = nullptr;                       // 左下角 Precision L* 容器节点
         int m_lastPrecIndex = -1;                               // 上一次渲染 L* 时所处的有效动作索引
         bool m_wasCalculating = false;                          // 记录上一帧是否处于后台计算中
-        std::vector<Ref<CCNode>> m_activeMarkers;               // 场景中当前存活的标记节点列表
+        std::vector<ActiveMarker> m_activeMarkers;              // 记录标记节点及其原始世界坐标
         std::map<int, Ref<CCLabelBMFont>> m_countLabels;        // 缓存各预设的数字标签以支持高性能局部文本刷新
 
         // 1P 与 2P 分立的最近画圈帧号记录
@@ -91,7 +96,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         // 清空存活标记
         for (auto& marker : m_fields->m_activeMarkers) {
-            if (marker) marker->removeFromParent();
+            if (marker.node) marker.node->removeFromParent();
         }
         m_fields->m_activeMarkers.clear();
 
@@ -323,10 +328,11 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
-    void cleanupOffscreenMarkers() {
+    void updateAndCleanMarkers() {
         if (!this->m_objectLayer) return;
 
         CCSize winSize = CCDirector::get()->getWinSize();
+        float layerScale = this->m_objectLayer->getScale();
 
         constexpr float margin = 300.0f;
         float minX = -margin;
@@ -336,15 +342,19 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         for (auto it = m_fields->m_activeMarkers.begin(); it != m_fields->m_activeMarkers.end(); ) {
             auto& marker = *it;
-            if (!marker || !marker->getParent()) {
+            if (!marker.node || !marker.node->getParent()) {
                 it = m_fields->m_activeMarkers.erase(it);
                 continue;
             }
 
-            CCPoint screenPos = this->m_objectLayer->convertToWorldSpace(marker->getPosition());
+            // 将物体层的世界坐标转换为屏幕坐标
+            CCPoint screenPos = this->m_objectLayer->convertToWorldSpace(marker.worldPos);
+            marker.node->setPosition(screenPos);
+            marker.node->setScale(layerScale); // 随摄像机缩放同步变化
 
+            // 越界清理
             if (screenPos.x < minX || screenPos.x > maxX || screenPos.y < minY || screenPos.y > maxY) {
-                marker->removeFromParent();
+                marker.node->removeFromParent();
                 it = m_fields->m_activeMarkers.erase(it);
             }
             else {
@@ -369,7 +379,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                     SoundManager::stopAll();
 
                     for (auto& marker : m_fields->m_activeMarkers) {
-                        if (marker) marker->removeFromParent();
+                        if (marker.node) marker.node->removeFromParent();
                     }
                     m_fields->m_activeMarkers.clear();
 
@@ -454,16 +464,14 @@ class $modify(MyPlayLayer, PlayLayer) {
 
                     m_fields->m_lastFrame = currentFrame;
                     if (needsHudUpdate) this->updateHUDCounts();
-
-                    this->cleanupOffscreenMarkers();
                 }
+                this->updateAndCleanMarkers();
             }
         }
     }
 
-    void spawnFrameWindowMarker(CCPoint pos, const std::string & displayStr, ccColor4F color) {
+    void spawnFrameWindowMarker(CCPoint pos, const std::string& displayStr, ccColor4F color) {
         auto markerNode = CCNode::create();
-        markerNode->setPosition(pos);
         markerNode->setZOrder(9999);
         markerNode->setID("frame-window-marker"_spr);
 
@@ -496,8 +504,24 @@ class $modify(MyPlayLayer, PlayLayer) {
         label->setOpacity(static_cast<GLubyte>(color.a * 255));
         markerNode->addChild(label);
 
-        this->m_objectLayer->addChild(markerNode);
-        m_fields->m_activeMarkers.push_back(markerNode);
+        // 挂载到 m_uiLayer
+        if (this->m_uiLayer) {
+            this->m_uiLayer->addChild(markerNode);
+        }
+        else {
+            this->addChild(markerNode, 9999);
+        }
+
+        // 初始化屏幕位置
+        if (this->m_objectLayer) {
+            markerNode->setPosition(this->m_objectLayer->convertToWorldSpace(pos));
+            markerNode->setScale(this->m_objectLayer->getScale());
+        }
+        else {
+            markerNode->setPosition(pos);
+        }
+
+        m_fields->m_activeMarkers.push_back({ markerNode, pos });
     }
 };
 
