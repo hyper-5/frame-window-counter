@@ -89,7 +89,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         int currentFrame = static_cast<int>(this->m_gameState.m_levelTime * g_macroFps);
         m_fields->m_lastFrame = currentFrame - 1; // 设为前一帧，保证当前起点帧的动作能在 onMyTick 中触发
-        m_fields->m_lastPrecIndex = -999;
+        m_fields->m_lastPrecIndex = -1;
         g_forcePrecRedraw = true;
         m_fields->m_hudCounts.clear();
         m_fields->m_lastSpawnFrame1P = -1;
@@ -173,7 +173,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (m_fields->m_wasCalculating) {
             m_fields->m_wasCalculating = false;
             g_forcePrecRedraw = true;
-            m_fields->m_lastPrecIndex = -999;
+            m_fields->m_lastPrecIndex = -1;
         }
 
         if (g_validActions.empty()) {
@@ -210,8 +210,11 @@ class $modify(MyPlayLayer, PlayLayer) {
                 if (idx >= 0 && idx < static_cast<int>(arr.size())) {
                     text += fmt::format("{:.2f}", arr[idx]);
                 }
+                else if (!arr.empty()) {
+                    text += fmt::format("{:.2f}", arr[0]);
+                }
                 else {
-                    text += "0.00"; 
+                    text += "0.00";
                 }
 
                 auto lbl = CCLabelBMFont::create(text.c_str(), "bigFont.fnt");
@@ -371,7 +374,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
                 if (currentFrame < m_fields->m_lastFrame) {
                     m_fields->m_lastFrame = currentFrame - 1;
-                    m_fields->m_lastPrecIndex = -999;
+                    m_fields->m_lastPrecIndex = -1;
                     g_forcePrecRedraw = true;
                     m_fields->m_hudCounts.clear();
                     m_fields->m_lastSpawnFrame1P = -1;
