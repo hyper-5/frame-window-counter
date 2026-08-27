@@ -210,9 +210,6 @@ class $modify(MyPlayLayer, PlayLayer) {
                 if (idx >= 0 && idx < static_cast<int>(arr.size())) {
                     text += fmt::format("{:.2f}", arr[idx]);
                 }
-                else if (!arr.empty()) {
-                    text += fmt::format("{:.2f}", arr[0]);
-                }
                 else {
                     text += "0.00";
                 }
