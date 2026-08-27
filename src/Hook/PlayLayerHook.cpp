@@ -151,8 +151,8 @@ class $modify(MyPlayLayer, PlayLayer) {
                 m_fields->m_precNode->setPosition({ 5.f, 5.f });
                 m_fields->m_precNode->setID("frame-window-prec"_spr);
 
-                if (this->m_uiLayer) this->m_uiLayer->addChild(m_fields->m_precNode, 9999);
-                else this->addChild(m_fields->m_precNode, 9999);
+                if (this->m_uiLayer) this->m_uiLayer->addChild(m_fields->m_precNode, 1);
+                else this->addChild(m_fields->m_precNode, 1);
 
                 auto lbl = CCLabelBMFont::create("Calculating L*... 0.0%", "bigFont.fnt");
                 lbl->setAnchorPoint({ 0.f, 0.f });
@@ -200,8 +200,8 @@ class $modify(MyPlayLayer, PlayLayer) {
             m_fields->m_precNode->setPosition({ 5.f, 5.f });
             m_fields->m_precNode->setID("frame-window-prec"_spr);
 
-            if (this->m_uiLayer) this->m_uiLayer->addChild(m_fields->m_precNode, 9999);
-            else this->addChild(m_fields->m_precNode, 9999);
+            if (this->m_uiLayer) this->m_uiLayer->addChild(m_fields->m_precNode, 1);
+            else this->addChild(m_fields->m_precNode, 1);
 
             float currentY = 0.f;
             auto addLabel = [&](bool show, const char* prefix, const std::vector<double>& arr) {
@@ -472,7 +472,6 @@ class $modify(MyPlayLayer, PlayLayer) {
 
     void spawnFrameWindowMarker(CCPoint pos, const std::string& displayStr, ccColor4F color) {
         auto markerNode = CCNode::create();
-        markerNode->setZOrder(9999);
         markerNode->setID("frame-window-marker"_spr);
 
         auto circle = CCDrawNode::create();
@@ -490,7 +489,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 4.f, { 0.f, 0.f, 0.f, color.a });
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 2.f, { r, g, b, a });
-        markerNode->addChild(circle);
+        markerNode->addChild(circle, 0);
 
         auto label = CCLabelBMFont::create(displayStr.c_str(), "bigFont.fnt");
         label->setAnchorPoint({ 1.f, 0.5f });
@@ -502,7 +501,7 @@ class $modify(MyPlayLayer, PlayLayer) {
             static_cast<GLubyte>(color.b * 255)
             });
         label->setOpacity(static_cast<GLubyte>(color.a * 255));
-        markerNode->addChild(label);
+        markerNode->addChild(label, 1);
 
         // ¹ÒÔØµ½ m_uiLayer
         if (this->m_uiLayer) {
