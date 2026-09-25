@@ -469,7 +469,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (!this->m_objectLayer) return;
 
         CCSize winSize = CCDirector::get()->getWinSize();
-        float layerScale = this->m_objectLayer->getScale();
+        float layerScale = std::abs(this->m_objectLayer->getScaleY());
 
         constexpr float margin = 300.0f;
         float minX = -margin;
@@ -664,7 +664,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         if (this->m_objectLayer) {
             markerNode->setPosition(this->m_objectLayer->convertToWorldSpace(pos));
-            markerNode->setScale(this->m_objectLayer->getScale());
+            markerNode->setScale(std::abs(this->m_objectLayer->getScaleY()));
         }
         else {
             markerNode->setPosition(pos);
