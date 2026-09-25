@@ -2,7 +2,7 @@
 #include "CmlParser.hpp"
 #include "../Data/State.hpp"
 #include "../Common.hpp"
-#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
+#if defined(GEODE_IS_MOBILE)
 #include "../UI/MobileExportPopup.hpp"
 #include "../UI/MobileImportPopup.hpp"
 #endif
@@ -322,7 +322,7 @@ namespace FileIO {
     }
 
     void exportFWC() {
-#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
+#if defined(GEODE_IS_MOBILE)
         // 移动端
         if (auto popup = MobileExportPopup::create()) {
             popup->showInstant();
@@ -364,7 +364,7 @@ namespace FileIO {
     void importReplay(std::function<void()> onSuccessCallback) {
         loadModData();
 
-#if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
+#if defined(GEODE_IS_MOBILE)
         // 移动端
         if (auto popup = MobileImportPopup::create(onSuccessCallback)) {
             popup->showInstant();
