@@ -446,7 +446,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         // 动画时长与幅度配置
         constexpr float TIME_UP = 0.06f; // 放大并变白的时长
-        constexpr float TIME_DOWN = 0.24f; // 缩回并恢复原色的时长
+        constexpr float TIME_DOWN = 0.20f; // 缩回并恢复原色的时长
         constexpr float BASE_SCALE = 0.50f; // 常态尺寸
         constexpr float PEAK_SCALE = 0.60f; // 弹起峰值尺寸
 
