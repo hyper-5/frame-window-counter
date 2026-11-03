@@ -46,8 +46,8 @@ class $modify(MyPlayLayer, PlayLayer) {
 #endif
     };
 
-    bool init(GJGameLevel * level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+    bool init(GJGameLevel * level, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, dontCreateObjects)) return false;
 
         g_lastAutoSaveTime = std::chrono::steady_clock::now();
         loadModData();
