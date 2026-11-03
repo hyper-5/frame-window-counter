@@ -25,6 +25,12 @@ bool MobileExportPopup::init() {
 
     auto now = std::chrono::system_clock::now();
     auto timeT = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+#if defined(GEODE_IS_WINDOWS)
+    localtime_s(&tm, &timeT);
+#else
+    localtime_r(&timeT, &tm);
+#endif
     char timeBuf[32];
     std::strftime(timeBuf, sizeof(timeBuf), "export_%Y%m%d_%H%M%S", std::localtime(&timeT));
 
