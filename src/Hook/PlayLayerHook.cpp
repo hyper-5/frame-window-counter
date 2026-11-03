@@ -403,9 +403,9 @@ class $modify(MyPlayLayer, PlayLayer) {
             restoreFrame = m_fields->m_pendingRestoreFrame;
         }
         else if (this->m_isPracticeMode) {
-            CheckpointObject* cp = this->m_currentCheckpoint;
+            CheckpointObject* cp = nullptr;
 
-            if (!cp && this->m_checkpointArray &&
+            if (this->m_checkpointArray &&
                 this->m_checkpointArray->count() > 0) {
                 cp = static_cast<CheckpointObject*>(
                     this->m_checkpointArray->lastObject()
