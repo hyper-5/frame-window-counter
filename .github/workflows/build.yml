@@ -15,13 +15,13 @@ jobs:
           # Windows
           - name: Windows
             os: windows-latest
-            extra-cmake-args: "-DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl"
+            configure-args: "-DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl"
 
           # macOS
           - name: macOS
             os: macos-latest
 
-          # ios
+          # iOS
           - name: iOS
             os: macos-latest
             target: iOS
@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Latest CMake
         uses: jwlawson/actions-setup-cmake@v2
         with:
@@ -49,9 +49,10 @@ jobs:
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
+          sdk: v6.0.0-alpha.1
           combine: true
           target: ${{ matrix.config.target }}
-          extra-cmake-args: ${{ matrix.config.extra-cmake-args }}
+          configure-args: ${{ matrix.config.configure-args }}
 
   package:
     name: Package builds
