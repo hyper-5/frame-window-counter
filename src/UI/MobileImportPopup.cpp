@@ -1,6 +1,7 @@
 #include "MobileImportPopup.hpp"
 #include "../IO/FileIO.hpp"
 #include "../Common.hpp"
+#include <asp/fs/std.hpp>
 #include <algorithm>
 
 using namespace geode::prelude;
@@ -53,8 +54,8 @@ bool MobileImportPopup::init(std::function<void()> onSuccessCallback) {
 void MobileImportPopup::scanFiles() {
     m_fileList.clear();
 
-    auto importDir = Mod::get()->getSaveDir() / "imports";
-    auto exportDir = Mod::get()->getSaveDir() / "exports";
+    std::filesystem::path importDir = (Mod::get()->getSaveDir() / "imports").toStdPath().unwrapOrDefault();
+    std::filesystem::path exportDir = (Mod::get()->getSaveDir() / "exports").toStdPath().unwrapOrDefault();
     std::error_code ec;
     std::filesystem::create_directories(importDir, ec);
     std::filesystem::create_directories(exportDir, ec);

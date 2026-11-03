@@ -10,7 +10,6 @@
 #include <Geode/utils/async.hpp>
 #include <set>
 #include <optional>
-#include <filesystem>
 
 using namespace geode::prelude;
 
@@ -323,7 +322,7 @@ void LabelPresetPopup::onBrowseAudio(CCObject*) {
     Ref<LabelPresetPopup> safeThis = this;
     async::spawn(
         file::pick(file::PickMode::OpenFile, options),
-        [safeThis](Result<std::optional<std::filesystem::path>> result) {
+        [safeThis](Result<std::optional<asp::fs::Path>> result) {
             if (!result.isOk()) return;
             auto opt = result.unwrap();
             if (!opt.has_value()) return;

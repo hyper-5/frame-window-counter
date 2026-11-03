@@ -2,7 +2,7 @@
 #include "../Common.hpp"
 #include "../Math/Calculator.hpp"
 #include <Geode/utils/async.hpp>
-#include <filesystem>
+#include <asp/fs/fs.hpp>
 #include <fstream>
 #include <thread>
 #include <algorithm>
@@ -188,10 +188,8 @@ void doAutoSave(GJGameLevel* level) {
             if (cleanLevelName.empty()) cleanLevelName = "Level";
 
             auto saveDir = baseDir / "Autosaves";
-            std::error_code ec;
-            std::filesystem::create_directories(saveDir, ec);
-            if (ec) {
-                geode::log::error("Failed to create autosave directory: {}", ec.message());
+            if (auto res = asp::fs::createDirAll(saveDir); !res) {
+                geode::log::error("Failed to create autosave directory: {}", res.unwrapErr());
                 return;
             }
 

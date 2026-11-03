@@ -1,5 +1,4 @@
 #include "SoundManager.hpp"
-#include <filesystem>
 #include <vector>
 
 using namespace geode::prelude;
@@ -33,8 +32,8 @@ void SoundManager::playSound(const std::string& path) {
     s_sfxGroup->setVolume(audioEngine->m_sfxVolume);
 
     //解析音频路径
-    std::filesystem::path audioPath(path);
-    if (!audioPath.is_absolute()) {
+    asp::fs::Path audioPath(path);
+    if (!audioPath.isAbsolute()) {
         audioPath = Mod::get()->getConfigDir() / path;
     }
     std::string fullPathStr = audioPath.string();
@@ -46,7 +45,7 @@ void SoundManager::playSound(const std::string& path) {
         sound = it->second;
     }
     else {
-        if (!std::filesystem::exists(audioPath)) return;
+        if (!audioPath.exists()) return;
 
         FMOD_RESULT res = sys->createSound(
             fullPathStr.c_str(),

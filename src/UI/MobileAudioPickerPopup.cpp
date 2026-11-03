@@ -1,5 +1,6 @@
 #include "MobileAudioPickerPopup.hpp"
 #include "../Common.hpp"
+#include <asp/fs/std.hpp>
 #include <algorithm>
 
 using namespace geode::prelude;
@@ -49,7 +50,7 @@ bool MobileAudioPickerPopup::init(std::function<void(std::string)> callback) {
 
 void MobileAudioPickerPopup::scanFiles() {
     m_fileList.clear();
-    auto dir = Mod::get()->getSaveDir() / "audio";
+    std::filesystem::path dir = (Mod::get()->getSaveDir() / "audio").toStdPath().unwrapOrDefault();
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
 

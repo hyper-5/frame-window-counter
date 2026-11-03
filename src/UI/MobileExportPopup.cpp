@@ -1,6 +1,8 @@
 #include "MobileExportPopup.hpp"
 #include "../IO/FileIO.hpp"
 #include "../Common.hpp"
+#include <asp/fs/std.hpp>
+#include <filesystem>
 #include <chrono>
 #include <ctime>
 #include <algorithm>
@@ -32,7 +34,7 @@ bool MobileExportPopup::init() {
     localtime_r(&timeT, &tm);
 #endif
     char timeBuf[32];
-    std::strftime(timeBuf, sizeof(timeBuf), "export_%Y%m%d_%H%M%S", std::localtime(&timeT));
+    std::strftime(timeBuf, sizeof(timeBuf), "export_%Y%m%d_%H%M%S", &tm);
 
     m_nameInput = TextInput::create(240.f, timeBuf);
     m_nameInput->setString(timeBuf);
@@ -81,7 +83,7 @@ void MobileExportPopup::doExport(bool isJson) {
         baseName += ext;
     }
 
-    auto exportDir = Mod::get()->getSaveDir() / "exports";
+    std::filesystem::path exportDir = (Mod::get()->getSaveDir() / "exports").toStdPath().unwrapOrDefault();
     std::error_code ec;
     std::filesystem::create_directories(exportDir, ec);
 

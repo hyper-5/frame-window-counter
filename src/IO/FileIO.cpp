@@ -11,6 +11,7 @@
 #include <gdr_convert.hpp>
 #include <Geode/utils/file.hpp>
 #include <Geode/utils/async.hpp>
+#include <asp/fs/std.hpp>
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
@@ -343,12 +344,12 @@ namespace FileIO {
 
         async::spawn(
             file::pick(file::PickMode::SaveFile, options),
-            [exportList](Result<std::optional<std::filesystem::path>> pickResult) {
+            [exportList](Result<std::optional<asp::fs::Path>> pickResult) {
                 if (!pickResult.isOk()) return;
                 auto optPath = pickResult.unwrap();
                 if (!optPath.has_value()) return;
 
-                auto path = optPath.value();
+                std::filesystem::path path = optPath.value().toStdPath().unwrapOrDefault();
                 std::string ext = path.extension().string();
                 std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 bool isJson = (ext == ".json");
@@ -383,12 +384,12 @@ namespace FileIO {
 
         async::spawn(
             file::pick(file::PickMode::OpenFile, options),
-            [onSuccessCallback](Result<std::optional<std::filesystem::path>> pickResult) {
+            [onSuccessCallback](Result<std::optional<asp::fs::Path>> pickResult) {
                 if (!pickResult.isOk()) return;
                 auto optPath = pickResult.unwrap();
                 if (!optPath.has_value()) return;
 
-                auto path = optPath.value();
+                std::filesystem::path path = optPath.value().toStdPath().unwrapOrDefault();
                 async::runtime().spawnBlocking<void>([path, onSuccessCallback]() {
                     doImportFromFile(path, onSuccessCallback);
                     });
