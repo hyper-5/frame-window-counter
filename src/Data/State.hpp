@@ -26,6 +26,13 @@ extern double g_kT;               // Nerve 常数
 extern double g_kU;               // Fatigue 常数
 extern double g_kC;               // CPS 常数
 
+extern float g_markerCircleScale;
+extern float g_markerTextScale;
+extern float g_hudTextScale;
+extern float g_hudLineSpacing;
+extern float g_precTextScale;
+extern float g_precLineSpacing;
+
 extern std::atomic<int> g_calcId;
 extern std::atomic<bool> g_isCalculating;
 extern std::atomic<float> g_calcProgress;
@@ -54,3 +61,6 @@ void updateTickCache();
 void doAutoSave(GJGameLevel* level);
 void triggerHUDRefresh();
 void resetCalcSettingsToDefault();
+void saveVisualSettings();
+void resetVisualSettingsToDefault();
+void triggerVisualRefresh();

@@ -518,7 +518,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                 auto lbl = CCLabelBMFont::create("Calculating L*... 0.0%", "bigFont.fnt");
                 lbl->setAnchorPoint({ 0.f, 0.f });
                 lbl->setPosition({ 0.f, 0.f });
-                lbl->setScale(0.35f);
+                lbl->setScale(g_precTextScale * (0.35f / 0.3f));
                 lbl->setColor({ 255, 200, 50 });
                 lbl->setID("computing-label"_spr);
                 m_fields->m_precNode->addChild(lbl);
@@ -578,9 +578,9 @@ class $modify(MyPlayLayer, PlayLayer) {
                 auto lbl = CCLabelBMFont::create(text.c_str(), "bigFont.fnt");
                 lbl->setAnchorPoint({ 0.f, 0.f });
                 lbl->setPosition({ 0.f, currentY });
-                lbl->setScale(0.3f);
+                lbl->setScale(g_precTextScale);
                 m_fields->m_precNode->addChild(lbl);
-                currentY += 12.f;
+                currentY += g_precLineSpacing;
                 };
 
             addLabel(g_showNFC, "Nerve+Fatigue+CPS L*: ", g_vNFC);
@@ -616,7 +616,7 @@ class $modify(MyPlayLayer, PlayLayer) {
             CCLabelBMFont* countLbl;
         };
         std::vector<HudItem> items;
-        float maxTextWidth = 25.f;
+        float maxTextWidth = 25.f * (g_hudTextScale / 0.5f);
 
         for (int i = 99; i >= 0; i--) {
             std::string idStr = std::to_string(i);
@@ -627,7 +627,7 @@ class $modify(MyPlayLayer, PlayLayer) {
             int count = m_fields->m_hudCounts.contains(i) ? m_fields->m_hudCounts[i] : 0;
             auto textLabel = CCLabelBMFont::create((preset.text + ":").c_str(), "bigFont.fnt");
             textLabel->setAnchorPoint({ 0.f, 1.f });
-            textLabel->setScale(0.5f);
+            textLabel->setScale(g_hudTextScale);
             textLabel->setColor({
                 static_cast<GLubyte>(preset.color.r * 255),
                 static_cast<GLubyte>(preset.color.g * 255),
@@ -640,7 +640,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
             auto countLabel = CCLabelBMFont::create(std::to_string(count).c_str(), "bigFont.fnt");
             countLabel->setAnchorPoint({ 0.f, 1.f });
-            countLabel->setScale(0.5f);
+            countLabel->setScale(g_hudTextScale);
             countLabel->setColor({
                 static_cast<GLubyte>(preset.color.r * 255),
                 static_cast<GLubyte>(preset.color.g * 255),
@@ -660,7 +660,7 @@ class $modify(MyPlayLayer, PlayLayer) {
             m_fields->m_hudNode->addChild(item.countLbl);
 
             m_fields->m_countLabels[item.id] = item.countLbl;
-            currentY -= 18.f;
+            currentY -= g_hudLineSpacing;
         }
     }
 
@@ -721,12 +721,13 @@ class $modify(MyPlayLayer, PlayLayer) {
         // 动画时长与幅度配置
         constexpr float TIME_UP = 0.06f; // 放大并变白的时长
         constexpr float TIME_DOWN = 0.20f; // 缩回并恢复原色的时长
-        constexpr float BASE_SCALE = 0.50f; // 常态尺寸
-        constexpr float PEAK_SCALE = 0.60f; // 弹起峰值尺寸
+        const float baseScale = g_hudTextScale;
+        const float peakScale = g_hudTextScale * 1.2f;
+
 
         // 缩放动画
-        auto scaleUp = CCEaseSineOut::create(CCScaleTo::create(TIME_UP, PEAK_SCALE));
-        auto scaleDown = CCEaseSineOut::create(CCScaleTo::create(TIME_DOWN, BASE_SCALE));
+        auto scaleUp = CCEaseSineOut::create(CCScaleTo::create(TIME_UP, peakScale));
+        auto scaleDown = CCEaseSineOut::create(CCScaleTo::create(TIME_DOWN, baseScale));
         auto scaleSeq = CCSequence::create(scaleUp, scaleDown, nullptr);
         scaleSeq->setTag(TAG_SCALE);
         countLbl->runAction(scaleSeq);
@@ -919,11 +920,12 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
-    void spawnFrameWindowMarker(CCPoint pos, const std::string & displayStr, ccColor4F color) {
+    void spawnFrameWindowMarker(CCPoint pos, const std::string& displayStr, ccColor4F color) {
         auto markerNode = CCNode::create();
         markerNode->setID("frame-window-marker"_spr);
 
         auto circle = CCDrawNode::create();
+        circle->setID("marker-circle"_spr);
         CCPoint verts[64];
         float radius = 13.f;
         for (int i = 0; i < 64; i++) {
@@ -938,12 +940,14 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 4.f, { 0.f, 0.f, 0.f, color.a });
         circle->drawPolygon(verts, 64, { 0.f, 0.f, 0.f, 0.f }, 2.f, { r, g, b, a });
+        circle->setScale(g_markerCircleScale);
         markerNode->addChild(circle, 0);
 
         auto label = CCLabelBMFont::create(displayStr.c_str(), "bigFont.fnt");
+        label->setID("marker-label"_spr);
         label->setAnchorPoint({ 1.f, 0.5f });
-        label->setPosition({ -18.f, 0.f });
-        label->setScale(0.5f);
+        label->setPosition({ -(13.f * g_markerCircleScale + 5.f), 0.f });
+        label->setScale(g_markerTextScale);
         label->setColor({
             static_cast<GLubyte>(color.r * 255),
             static_cast<GLubyte>(color.g * 255),
@@ -969,6 +973,26 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         m_fields->m_activeMarkers.push_back({ markerNode, pos });
     }
+
+    void refreshActiveMarkers() {
+        for (auto& marker : m_fields->m_activeMarkers) {
+            if (!marker.node) continue;
+            if (auto circle = marker.node->getChildByID("marker-circle"_spr)) {
+                circle->setScale(g_markerCircleScale);
+            }
+            if (auto label = marker.node->getChildByID("marker-label"_spr)) {
+                label->setScale(g_markerTextScale);
+                label->setPosition({ -(13.f * g_markerCircleScale + 5.f), 0.f });
+            }
+        }
+    }
+
+    void refreshAllVisuals() {
+        this->recalculateAndRefreshHUD();
+        g_forcePrecRedraw = true;
+        this->updatePrecisionHUD(m_fields->m_currentFrame);
+        this->refreshActiveMarkers();
+    }
 };
 
 class $modify(MyPlayerObject, PlayerObject) {
@@ -985,6 +1009,12 @@ class $modify(MyPlayerObject, PlayerObject) {
 void triggerHUDRefresh() {
     if (auto pl = PlayLayer::get()) {
         static_cast<MyPlayLayer*>(pl)->recalculateAndRefreshHUD();
+    }
+}
+
+void triggerVisualRefresh() {
+    if (auto pl = PlayLayer::get()) {
+        static_cast<MyPlayLayer*>(pl)->refreshAllVisuals();
     }
 }
 

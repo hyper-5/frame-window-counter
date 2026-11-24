@@ -22,6 +22,14 @@ constexpr double DEFAULT_K_T = 0.0016520833717346; // Nerve
 constexpr double DEFAULT_K_U = 0.0002727763242154; // Fatigue
 constexpr double DEFAULT_K_C = 0.2784421686721826; // CPS
 
+// 默认显示外观常数
+constexpr float DEFAULT_MARKER_CIRCLE_SCALE = 1.0f; // 圆圈缩放
+constexpr float DEFAULT_MARKER_TEXT_SCALE = 0.5f; // 圆圈左侧数字缩放
+constexpr float DEFAULT_HUD_TEXT_SCALE = 0.5f; // 左上角计数文字缩放
+constexpr float DEFAULT_HUD_LINE_SPACING = 18.0f;// 左上角计数行间距
+constexpr float DEFAULT_PREC_TEXT_SCALE = 0.3f; // 左下角 Precision 文字缩放
+constexpr float DEFAULT_PREC_LINE_SPACING = 12.0f; // 左下角 Precision 行间距
+
 inline void stopAlertAnimation(FLAlertLayer* alert) {
     if (!alert) return;
     if (alert->m_mainLayer) {

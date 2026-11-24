@@ -1,8 +1,6 @@
 #include "FrameActionPopup.hpp"
 #include "AddFramePopup.hpp"
-#include "WindowPresetPopup.hpp"
-#include "LabelPresetPopup.hpp"
-#include "PrecisionSettingsPopup.hpp"
+#include "SettingsPopup.hpp"
 #include "../Data/State.hpp"
 #include "../IO/FileIO.hpp"
 #include "../Common.hpp"
@@ -70,7 +68,7 @@ bool FrameActionPopup::init() {
 
     auto precSpr = CCSprite::createWithSpriteFrameName("GJ_optionsBtn_001.png");
     precSpr->setScale(0.65f);
-    auto precBtn = CCMenuItemSpriteExtra::create(precSpr, this, menu_selector(FrameActionPopup::onOpenPrecision));
+    auto precBtn = CCMenuItemSpriteExtra::create(precSpr, this, menu_selector(FrameActionPopup::onOpenSettings));
     precBtn->setPosition({ size.width - 25.f, size.height - 25.f });
     topMenu->addChild(precBtn);
 
@@ -138,10 +136,13 @@ bool FrameActionPopup::init() {
     topMenu->addChild(m_nextBtn);
 
     m_scrollLayer = ScrollLayer::create({ 400.f, 165.f });
+    m_scrollLayer->ignoreAnchorPointForPosition(false);
+    m_scrollLayer->setAnchorPoint({ 0.f, 0.f });
     m_scrollLayer->setPosition({ 15.f, 45.f });
     m_mainLayer->addChild(m_scrollLayer);
 
     auto contentNode = CCNode::create();
+    contentNode->setAnchorPoint({ 0.f, 0.f });
     contentNode->setPosition({ 0, 0 });
     contentNode->setID("content-node"_spr);
     m_scrollLayer->m_contentLayer->addChild(contentNode);
@@ -158,39 +159,25 @@ bool FrameActionPopup::init() {
 
     float bottomY = 25.f;
 
-    // 1. Labels
-    auto backBtnSpr = ButtonSprite::create("Labels");
-    backBtnSpr->setScale(0.55f);
-    auto backBtn = CCMenuItemSpriteExtra::create(backBtnSpr, this, menu_selector(FrameActionPopup::onSwitchToLabels));
-    backBtn->setPosition({ centerX - 150.f, bottomY });
-    bottomMenu->addChild(backBtn);
-
-    // 2. Windows
-    auto winBtnSpr = ButtonSprite::create("Windows");
-    winBtnSpr->setScale(0.55f);
-    auto winBtn = CCMenuItemSpriteExtra::create(winBtnSpr, this, menu_selector(FrameActionPopup::onSwitchToWindows));
-    winBtn->setPosition({ centerX - 75.f, bottomY });
-    bottomMenu->addChild(winBtn);
-
-    // 3. Merge（合并同帧输入）
+    // 1. Merge
     auto mergeBtnSpr = ButtonSprite::create("Merge");
-    mergeBtnSpr->setScale(0.55f);
+    mergeBtnSpr->setScale(0.6f);
     auto mergeBtn = CCMenuItemSpriteExtra::create(mergeBtnSpr, this, menu_selector(FrameActionPopup::onMergeFrames));
-    mergeBtn->setPosition({ centerX, bottomY });
+    mergeBtn->setPosition({ centerX - 135.f, bottomY });
     bottomMenu->addChild(mergeBtn);
 
-    // 4. Import
+    // 2. Import
     auto importBtnSpr = ButtonSprite::create("Import");
-    importBtnSpr->setScale(0.55f);
+    importBtnSpr->setScale(0.6f);
     auto importBtn = CCMenuItemSpriteExtra::create(importBtnSpr, this, menu_selector(FrameActionPopup::onImportGDR));
-    importBtn->setPosition({ centerX + 75.f, bottomY });
+    importBtn->setPosition({ centerX, bottomY });
     bottomMenu->addChild(importBtn);
 
-    // 5. Export
+    // 3. Export
     auto exportBtnSpr = ButtonSprite::create("Export");
-    exportBtnSpr->setScale(0.55f);
+    exportBtnSpr->setScale(0.6f);
     auto exportBtn = CCMenuItemSpriteExtra::create(exportBtnSpr, this, menu_selector(FrameActionPopup::onExportFWC));
-    exportBtn->setPosition({ centerX + 150.f, bottomY });
+    exportBtn->setPosition({ centerX + 135.f, bottomY });
     bottomMenu->addChild(exportBtn);
 
     m_mainLayer->addChild(bottomMenu);
@@ -358,8 +345,8 @@ void FrameActionPopup::jumpToFrame(int targetFrame) {
     }
 }
 
-void FrameActionPopup::onOpenPrecision(CCObject*) {
-    if (auto popup = PrecisionSettingsPopup::create()) {
+void FrameActionPopup::onOpenSettings(CCObject*) {
+    if (auto popup = SettingsPopup::create()) {
         popup->showInstant();
     }
 }
@@ -678,24 +665,6 @@ void FrameActionPopup::onTogglePlayer(CCObject* sender) {
     }
 }
 
-void FrameActionPopup::onSwitchToLabels(CCObject*) {
-    this->instantClose();
-    auto popup = LabelPresetPopup::create();
-    if (popup) {
-        popup->setID("LabelPresetPopup"_spr);
-        popup->showInstant();
-    }
-}
-
-void FrameActionPopup::onSwitchToWindows(CCObject*) {
-    this->instantClose();
-    auto popup = WindowPresetPopup::create();
-    if (popup) {
-        popup->setID("WindowPresetPopup"_spr);
-        popup->showInstant();
-    }
-}
-
 void FrameActionPopup::onExportFWC(CCObject*) {
     FileIO::exportFWC();
 }
@@ -798,7 +767,7 @@ void FrameActionPopup::scrollToCell(int indexInPage) {
     if (!m_scrollLayer || !m_scrollLayer->m_contentLayer) return;
 
     float rowHeight = 42.f;
-    float viewHeight = 180.f;
+    float viewHeight = m_scrollLayer->getContentHeight();
     float contentHeight = m_scrollLayer->m_contentLayer->getContentSize().height;
 
     float targetY = contentHeight - (indexInPage * rowHeight) - rowHeight / 2.f;

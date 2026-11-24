@@ -34,7 +34,6 @@ protected:
     void onAddFramePrompt(cocos2d::CCObject*);
     void onClearAll(cocos2d::CCObject*);
     void onDeleteFrame(cocos2d::CCObject* sender);
-    void onOpenPrecision(cocos2d::CCObject*);
     void onToggleMod(cocos2d::CCObject* sender);
     void onSelectAll(cocos2d::CCObject*);
     void onDeselectAll(cocos2d::CCObject*);
@@ -45,9 +44,7 @@ protected:
     cocos2d::CCNode* createCellTemplate(int index);
     void onToggleDraw(cocos2d::CCObject* sender);
     void onTogglePlayer(cocos2d::CCObject* sender);
-
-    void onSwitchToLabels(cocos2d::CCObject*);
-    void onSwitchToWindows(cocos2d::CCObject*);
+    void onOpenSettings(cocos2d::CCObject*);
     void onExportFWC(cocos2d::CCObject*);
     void onImportGDR(cocos2d::CCObject*);
     void onMergeFrames(cocos2d::CCObject* sender);

@@ -10,10 +10,7 @@
 #include "../Common.hpp"
 #include "../UI/AddFramePopup.hpp"
 #include "../UI/FrameActionPopup.hpp"
-#include "../UI/PrecisionSettingsPopup.hpp"
-#include "../UI/LStarCalcSettingsPopup.hpp"
-#include "../UI/LabelPresetPopup.hpp"
-#include "../UI/WindowPresetPopup.hpp"
+#include "../UI/SettingsPopup.hpp"
 
 using namespace geode::prelude;
 
@@ -50,10 +47,7 @@ static void toggleModPopups(CCScene* scene) {
 
             if (typeinfo_cast<AddFramePopup*>(child) ||
                 typeinfo_cast<FrameActionPopup*>(child) ||
-                typeinfo_cast<PrecisionSettingsPopup*>(child) ||
-                typeinfo_cast<LStarCalcSettingsPopup*>(child) ||
-                typeinfo_cast<LabelPresetPopup*>(child) ||
-                typeinfo_cast<WindowPresetPopup*>(child)) {
+                typeinfo_cast<SettingsPopup*>(child)) {
                 child->removeFromParentAndCleanup(true);
                 closedAny = true;
             }

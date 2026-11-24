@@ -31,6 +31,33 @@ double g_kT = DEFAULT_K_T;
 double g_kU = DEFAULT_K_U;
 double g_kC = DEFAULT_K_C;
 
+float g_markerCircleScale = DEFAULT_MARKER_CIRCLE_SCALE;
+float g_markerTextScale = DEFAULT_MARKER_TEXT_SCALE;
+float g_hudTextScale = DEFAULT_HUD_TEXT_SCALE;
+float g_hudLineSpacing = DEFAULT_HUD_LINE_SPACING;
+float g_precTextScale = DEFAULT_PREC_TEXT_SCALE;
+float g_precLineSpacing = DEFAULT_PREC_LINE_SPACING;
+
+void saveVisualSettings() {
+    Mod::get()->setSavedValue("visual-marker-circle-scale", static_cast<double>(g_markerCircleScale));
+    Mod::get()->setSavedValue("visual-marker-text-scale", static_cast<double>(g_markerTextScale));
+    Mod::get()->setSavedValue("visual-hud-text-scale", static_cast<double>(g_hudTextScale));
+    Mod::get()->setSavedValue("visual-hud-line-spacing", static_cast<double>(g_hudLineSpacing));
+    Mod::get()->setSavedValue("visual-prec-text-scale", static_cast<double>(g_precTextScale));
+    Mod::get()->setSavedValue("visual-prec-line-spacing", static_cast<double>(g_precLineSpacing));
+}
+
+void resetVisualSettingsToDefault() {
+    g_markerCircleScale = DEFAULT_MARKER_CIRCLE_SCALE;
+    g_markerTextScale = DEFAULT_MARKER_TEXT_SCALE;
+    g_hudTextScale = DEFAULT_HUD_TEXT_SCALE;
+    g_hudLineSpacing = DEFAULT_HUD_LINE_SPACING;
+    g_precTextScale = DEFAULT_PREC_TEXT_SCALE;
+    g_precLineSpacing = DEFAULT_PREC_LINE_SPACING;
+    saveVisualSettings();
+    triggerVisualRefresh();
+}
+
 // 多线程计算同步原子变量
 std::atomic<int> g_calcId{ 0 };                             // 当前计算任务唯一 ID
 std::atomic<bool> g_isCalculating{ false };                 // 是否正在计算中
@@ -80,6 +107,13 @@ void loadModData() {
     g_showFC = Mod::get()->getSavedValue<bool>("show-fc", false);
     g_showNFC = Mod::get()->getSavedValue<bool>("show-nfc", false);
 
+    g_markerCircleScale = static_cast<float>(Mod::get()->getSavedValue<double>("visual-marker-circle-scale", DEFAULT_MARKER_CIRCLE_SCALE));
+    g_markerTextScale = static_cast<float>(Mod::get()->getSavedValue<double>("visual-marker-text-scale", DEFAULT_MARKER_TEXT_SCALE));
+    g_hudTextScale = static_cast<float>(Mod::get()->getSavedValue<double>("visual-hud-text-scale", DEFAULT_HUD_TEXT_SCALE));
+    g_hudLineSpacing = static_cast<float>(Mod::get()->getSavedValue<double>("visual-hud-line-spacing", DEFAULT_HUD_LINE_SPACING));
+    g_precTextScale = static_cast<float>(Mod::get()->getSavedValue<double>("visual-prec-text-scale", DEFAULT_PREC_TEXT_SCALE));
+    g_precLineSpacing = static_cast<float>(Mod::get()->getSavedValue<double>("visual-prec-line-spacing", DEFAULT_PREC_LINE_SPACING));
+
     for (int i = 0; i <= 99; i++) {
         std::string key = std::to_string(i);
         if (!g_labelPresets.contains(key)) {
@@ -119,6 +153,8 @@ void saveSettings() {
     Mod::get()->setSavedValue("show-nc", g_showNC);
     Mod::get()->setSavedValue("show-fc", g_showFC);
     Mod::get()->setSavedValue("show-nfc", g_showNFC);
+
+    saveVisualSettings();
 }
 
 void updateTickCache() {
