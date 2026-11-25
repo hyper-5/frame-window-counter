@@ -49,7 +49,6 @@ jobs:
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          sdk: v6.0.0-alpha.1
           combine: true
           target: ${{ matrix.config.target }}
           configure-args: ${{ matrix.config.configure-args }}
