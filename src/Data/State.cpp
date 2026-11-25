@@ -38,6 +38,9 @@ float g_hudLineSpacing = DEFAULT_HUD_LINE_SPACING;
 float g_precTextScale = DEFAULT_PREC_TEXT_SCALE;
 float g_precLineSpacing = DEFAULT_PREC_LINE_SPACING;
 
+bool g_showInputTimeline = DEFAULT_SHOW_INPUT_TIMELINE;
+std::atomic<uint64_t> g_actionsRevision{ 1 };
+
 void saveVisualSettings() {
     Mod::get()->setSavedValue("visual-marker-circle-scale", static_cast<double>(g_markerCircleScale));
     Mod::get()->setSavedValue("visual-marker-text-scale", static_cast<double>(g_markerTextScale));
@@ -45,6 +48,7 @@ void saveVisualSettings() {
     Mod::get()->setSavedValue("visual-hud-line-spacing", static_cast<double>(g_hudLineSpacing));
     Mod::get()->setSavedValue("visual-prec-text-scale", static_cast<double>(g_precTextScale));
     Mod::get()->setSavedValue("visual-prec-line-spacing", static_cast<double>(g_precLineSpacing));
+    Mod::get()->setSavedValue("visual-show-input-timeline", g_showInputTimeline);
 }
 
 void resetVisualSettingsToDefault() {
@@ -54,6 +58,7 @@ void resetVisualSettingsToDefault() {
     g_hudLineSpacing = DEFAULT_HUD_LINE_SPACING;
     g_precTextScale = DEFAULT_PREC_TEXT_SCALE;
     g_precLineSpacing = DEFAULT_PREC_LINE_SPACING;
+    g_showInputTimeline = DEFAULT_SHOW_INPUT_TIMELINE;
     saveVisualSettings();
     triggerVisualRefresh();
 }
@@ -113,6 +118,7 @@ void loadModData() {
     g_hudLineSpacing = static_cast<float>(Mod::get()->getSavedValue<double>("visual-hud-line-spacing", DEFAULT_HUD_LINE_SPACING));
     g_precTextScale = static_cast<float>(Mod::get()->getSavedValue<double>("visual-prec-text-scale", DEFAULT_PREC_TEXT_SCALE));
     g_precLineSpacing = static_cast<float>(Mod::get()->getSavedValue<double>("visual-prec-line-spacing", DEFAULT_PREC_LINE_SPACING));
+    g_showInputTimeline = Mod::get()->getSavedValue<bool>("visual-show-input-timeline", DEFAULT_SHOW_INPUT_TIMELINE);
 
     for (int i = 0; i <= 99; i++) {
         std::string key = std::to_string(i);
@@ -166,6 +172,7 @@ void updateTickCache() {
     std::stable_sort(g_tickActionsCache.begin(), g_tickActionsCache.end(), [](const FrameAction& a, const FrameAction& b) {
         return a.frame < b.frame;
         });
+    g_actionsRevision.fetch_add(1, std::memory_order_relaxed);
 }
 
 void saveFrames() {

@@ -30,6 +30,8 @@ constexpr float DEFAULT_HUD_LINE_SPACING = 18.0f;// 左上角计数行间距
 constexpr float DEFAULT_PREC_TEXT_SCALE = 0.3f; // 左下角 Precision 文字缩放
 constexpr float DEFAULT_PREC_LINE_SPACING = 12.0f; // 左下角 Precision 行间距
 
+constexpr bool DEFAULT_SHOW_INPUT_TIMELINE = true; // 默认开启实时输入时间轴图表
+
 inline void stopAlertAnimation(FLAlertLayer* alert) {
     if (!alert) return;
     if (alert->m_mainLayer) {

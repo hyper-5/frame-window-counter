@@ -2,6 +2,7 @@
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/binding/CheckpointObject.hpp>
+#include <Geode/ui/Label.hpp>
 #include "../Data/State.hpp"
 #include "../Common.hpp"
 #include "../Audio/SoundManager.hpp"
@@ -41,6 +42,17 @@ class $modify(MyPlayLayer, PlayLayer) {
         int m_lastSpawnFrame1P = -1;
         int m_lastSpawnFrame2P = -1;
 
+        // 实时输入时间轴组件
+        Ref<CCNode> m_timelineNode = nullptr;
+        Ref<CCDrawNode> m_timelineDraw = nullptr;
+        Ref<CCNode> m_timelineInfoNode = nullptr;
+        Ref<geode::Label> m_timelineFrameLabel = nullptr;
+        Ref<geode::TextInput> m_timelineWinInput = nullptr;
+        int m_lastTimelineFrame = -999999;
+        uint64_t m_lastTimelineRevision = 0;
+        std::string m_activeTimelineKey = "";
+        bool m_suppressTimelineInput = false;
+
 #if defined(GEODE_IS_MOBILE)
         bool m_isLevelEnd = false;                              // 标记关卡是否已触碰终点
 #endif
@@ -74,6 +86,8 @@ class $modify(MyPlayLayer, PlayLayer) {
 #endif
 
         this->rebuildHUD();
+        this->rebuildInputTimeline();
+        this->updateInputTimeline(m_fields->m_currentFrame, true);
         this->schedule(schedule_selector(MyPlayLayer::onMyTick));
 
         return true;
@@ -362,6 +376,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
     void onQuit() {
         this->unschedule(schedule_selector(MyPlayLayer::onMyTick));
+        this->destroyInputTimeline();
         SoundManager::stopAll();
         PlayLayer::onQuit();
     }
@@ -477,6 +492,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         this->updateHUDCounts();
         this->updatePrecisionHUD(m_fields->m_currentFrame);
+        this->updateInputTimeline(m_fields->m_currentFrame, true);
 
         if (this->m_objectLayer) {
             auto children = this->m_objectLayer->getChildren();
@@ -901,6 +917,7 @@ class $modify(MyPlayLayer, PlayLayer) {
     void onMyTick(float dt) {
         if (!g_modEnabled) return;
         auto gm = GameManager::sharedState();
+        this->updateInputTimeline(m_fields->m_currentFrame);
         if (gm->getPlayLayer() && !gm->getPlayLayer()->m_isPaused) {
             if (this->m_player1 && !this->m_player1->m_isDead) {
                 if (m_fields->m_checkpointRemovalActive) {
@@ -992,6 +1009,205 @@ class $modify(MyPlayLayer, PlayLayer) {
         g_forcePrecRedraw = true;
         this->updatePrecisionHUD(m_fields->m_currentFrame);
         this->refreshActiveMarkers();
+        this->rebuildInputTimeline();
+        this->updateInputTimeline(m_fields->m_currentFrame, true);
+    }
+
+    std::string findActionKeyAtFrame(int frame) {
+        std::string k0 = fmt::format("{}_0_0", frame);
+        if (auto it = g_frameActions.find(k0); it != g_frameActions.end() && it->second.frame == frame) {
+            return k0;
+        }
+        std::string k1 = fmt::format("{}_1_0", frame);
+        if (auto it = g_frameActions.find(k1); it != g_frameActions.end() && it->second.frame == frame) {
+            return k1;
+        }
+        for (const auto& [k, v] : g_frameActions) {
+            if (v.frame == frame) return k;
+        }
+        return "";
+    }
+
+    void destroyInputTimeline() {
+        if (m_fields->m_timelineWinInput) {
+            m_fields->m_timelineWinInput->unfocus();
+            m_fields->m_timelineWinInput = nullptr;
+        }
+        if (m_fields->m_timelineNode) {
+            m_fields->m_timelineNode->removeFromParent();
+            m_fields->m_timelineNode = nullptr;
+        }
+        m_fields->m_timelineDraw = nullptr;
+        m_fields->m_timelineInfoNode = nullptr;
+        m_fields->m_timelineFrameLabel = nullptr;
+        m_fields->m_activeTimelineKey.clear();
+        m_fields->m_lastTimelineFrame = -999999;
+        m_fields->m_lastTimelineRevision = 0;
+    }
+
+    void rebuildInputTimeline() {
+        this->destroyInputTimeline();
+
+        if (!g_modEnabled || !g_showInputTimeline) return;
+
+        auto winSize = CCDirector::sharedDirector()->getWinSize();
+
+        m_fields->m_timelineNode = CCNode::create();
+        m_fields->m_timelineNode->setID("frame-window-timeline"_spr);
+        m_fields->m_timelineNode->setPosition({ winSize.width / 2.f, 58.f });
+
+        if (this->m_uiLayer) this->m_uiLayer->addChild(m_fields->m_timelineNode, 90);
+        else this->addChild(m_fields->m_timelineNode, 9998);
+
+        // 浅黑半透明底板，确保在白色/亮色关卡背景上竖线和文字依然清晰
+        auto bg = CCScale9Sprite::create("square02b_001.png");
+        bg->setColor({ 0, 0, 0 });
+        bg->setOpacity(95);
+        bg->setContentSize({ 296.f, 86.f });
+        bg->setPosition({ 0.f, -4.f });
+        m_fields->m_timelineNode->addChild(bg, 0);
+
+        // 静态基线与顶部中央指针 "v"
+        auto staticDraw = CCDrawNode::create();
+        staticDraw->drawSegment({ -140.f, 0.f }, { 140.f, 0.f }, 0.8f, { 1.f, 1.f, 1.f, 0.9f });
+        staticDraw->drawSegment({ -4.5f, 33.f }, { 0.f, 27.f }, 0.9f, { 1.f, 1.f, 1.f, 1.f });
+        staticDraw->drawSegment({ 0.f, 27.f }, { 4.5f, 33.f }, 0.9f, { 1.f, 1.f, 1.f, 1.f });
+        m_fields->m_timelineNode->addChild(staticDraw, 1);
+
+        // 动态竖线绘制层
+        m_fields->m_timelineDraw = CCDrawNode::create();
+        m_fields->m_timelineNode->addChild(m_fields->m_timelineDraw, 2);
+
+        // 命中输入帧时显示的下方信息区：Frame + Window 输入框
+        m_fields->m_timelineInfoNode = CCNode::create();
+        m_fields->m_timelineInfoNode->setPosition({ 0.f, 0.f });
+        m_fields->m_timelineInfoNode->setVisible(false);
+        m_fields->m_timelineNode->addChild(m_fields->m_timelineInfoNode, 3);
+
+        m_fields->m_timelineFrameLabel = geode::Label::create("Frame: 0", "bigFont.fnt");
+        m_fields->m_timelineFrameLabel->setAnchorPoint({ 0.5f, 0.5f });
+        m_fields->m_timelineFrameLabel->setPosition({ 0.f, -13.f });
+        m_fields->m_timelineFrameLabel->setScale(0.34f);
+        m_fields->m_timelineInfoNode->addChild(m_fields->m_timelineFrameLabel);
+
+        auto winLbl = geode::Label::create("Window:", "bigFont.fnt");
+        winLbl->setAnchorPoint({ 1.f, 0.5f });
+        winLbl->setPosition({ 4.f, -33.f });
+        winLbl->setScale(0.32f);
+        m_fields->m_timelineInfoNode->addChild(winLbl);
+
+        m_fields->m_timelineWinInput = geode::TextInput::create(58.f, "1");
+        m_fields->m_timelineWinInput->setPosition({ 29.f, -33.f });
+        m_fields->m_timelineWinInput->setScale(0.68f);
+        m_fields->m_timelineWinInput->setFilter("0123456789./");
+        m_fields->m_timelineWinInput->setNumericMode(true);
+        m_fields->m_timelineWinInput->setCallback([this](std::string const& text) {
+            if (m_fields->m_suppressTimelineInput || text.empty()) return;
+            if (m_fields->m_activeTimelineKey.empty()) return;
+
+            auto it = g_frameActions.find(m_fields->m_activeTimelineKey);
+            if (it == g_frameActions.end()) return;
+
+            double fwVal = parseWindowExpr(text, 1.0);
+            if (std::abs(it->second.frameWindow - fwVal) > 1e-6) {
+                it->second.frameWindow = fwVal;
+                saveFrames();
+                // 同步版本号，避免用户正在输入 "1." 或 "1/" 时被下一帧刷新覆写
+                m_fields->m_lastTimelineRevision = g_actionsRevision.load(std::memory_order_relaxed);
+                this->recalculateAndRefreshHUD();
+            }
+            });
+        m_fields->m_timelineInfoNode->addChild(m_fields->m_timelineWinInput);
+    }
+
+    void updateInputTimeline(int currentFrame, bool force = false) {
+        if (!g_modEnabled || !g_showInputTimeline) {
+            if (m_fields->m_timelineNode) {
+                this->destroyInputTimeline();
+            }
+            return;
+        }
+
+        if (!m_fields->m_timelineNode) {
+            this->rebuildInputTimeline();
+            force = true;
+        }
+        if (!m_fields->m_timelineDraw || !m_fields->m_timelineInfoNode) return;
+
+        uint64_t rev = g_actionsRevision.load(std::memory_order_relaxed);
+        if (!force && currentFrame == m_fields->m_lastTimelineFrame && rev == m_fields->m_lastTimelineRevision) {
+            return;
+        }
+
+        m_fields->m_lastTimelineFrame = currentFrame;
+        m_fields->m_lastTimelineRevision = rev;
+
+        // 水平可视窗口：左右各显示约 0.5 秒（按当前 TPS 自适应）
+        constexpr float kHalfWidth = 136.f;
+        constexpr float kLineHeight = 24.f;
+        double visibleHalfFrames = std::max(30.0, g_macroFps * 0.5);
+        float pxPerFrame = kHalfWidth / static_cast<float>(visibleHalfFrames);
+
+        int minFrame = currentFrame - static_cast<int>(std::ceil(visibleHalfFrames));
+        int maxFrame = currentFrame + static_cast<int>(std::ceil(visibleHalfFrames));
+
+        m_fields->m_timelineDraw->clear();
+
+        auto it = std::lower_bound(
+            g_tickActionsCache.begin(),
+            g_tickActionsCache.end(),
+            minFrame,
+            [](const FrameAction& a, int frame) { return a.frame < frame; }
+        );
+
+        bool hitCurrentFrame = false;
+        while (it != g_tickActionsCache.end() && it->frame <= maxFrame) {
+            float x = static_cast<float>(it->frame - currentFrame) * pxPerFrame;
+            if (x >= -kHalfWidth && x <= kHalfWidth) {
+                bool isCurrent = (it->frame == currentFrame);
+                if (isCurrent) hitCurrentFrame = true;
+
+                ccColor4F color = it->isHold
+                    ? ccColor4F{ 1.f, 0.65f, 0.f, 1.f }  // Hold: 橙色
+                : ccColor4F{ 1.f, 1.f, 1.f, 1.f };   // Release: 白色
+
+                float thickness = isCurrent ? 1.25f : 0.75f;
+                m_fields->m_timelineDraw->drawSegment({ x, 0.f }, { x, kLineHeight }, thickness, color);
+            }
+            ++it;
+        }
+
+        if (hitCurrentFrame) {
+            std::string key = this->findActionKeyAtFrame(currentFrame);
+            if (!key.empty()) {
+                const auto& act = g_frameActions[key];
+                bool keyChanged = (m_fields->m_activeTimelineKey != key);
+                m_fields->m_activeTimelineKey = key;
+
+                m_fields->m_timelineInfoNode->setVisible(true);
+                m_fields->m_timelineFrameLabel->setString(fmt::format("Frame: {}", act.frame).c_str());
+                m_fields->m_timelineFrameLabel->setColor(
+                    act.isHold ? ccColor3B{ 255, 165, 0 } : ccColor3B{ 255, 255, 255 }
+                );
+
+                std::string winStr = formatWindowVal(act.frameWindow);
+                if (keyChanged || m_fields->m_timelineWinInput->getString() != winStr) {
+                    m_fields->m_suppressTimelineInput = true;
+                    m_fields->m_timelineWinInput->setString(winStr);
+                    m_fields->m_suppressTimelineInput = false;
+                }
+                return;
+            }
+        }
+
+        // 未停留在输入帧时隐藏信息区并取消输入焦点
+        if (!m_fields->m_activeTimelineKey.empty() || m_fields->m_timelineInfoNode->isVisible()) {
+            m_fields->m_activeTimelineKey.clear();
+            m_fields->m_timelineInfoNode->setVisible(false);
+            if (m_fields->m_timelineWinInput) {
+                m_fields->m_timelineWinInput->unfocus();
+            }
+        }
     }
 };
 

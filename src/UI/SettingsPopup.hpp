@@ -20,6 +20,7 @@ protected:
     cocos2d::CCMenu* m_tabMenu = nullptr;
     cocos2d::CCNode* m_tabContent = nullptr;
     bool m_suppressCallbacks = false;
+    CCMenuItemToggler* m_timelineToggle = nullptr;
 
     // --- Display Tab ---
     Slider* m_circleScaleSlider = nullptr;
@@ -96,6 +97,7 @@ protected:
     // Display Tab 回调
     void onDisplaySliderChanged(cocos2d::CCObject* sender);
     void onResetVisuals(cocos2d::CCObject* sender);
+    void onToggleInputTimeline(CCObject* sender);
 
     // Labels Tab 回调
     void loadLabelPreset();

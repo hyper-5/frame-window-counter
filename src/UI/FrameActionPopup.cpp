@@ -377,6 +377,10 @@ void FrameActionPopup::onToggleMod(CCObject* sender) {
                     }
                 }
             }
+            if (auto tl = pl->getChildByID("frame-window-timeline"_spr)) tl->removeFromParent();
+            if (pl->m_uiLayer) {
+                if (auto tl = pl->m_uiLayer->getChildByID("frame-window-timeline"_spr)) tl->removeFromParent();
+            }
         }
     }
     else {

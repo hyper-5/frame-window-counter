@@ -100,6 +100,7 @@ void SettingsPopup::clearTabPointers() {
     m_precTextInput = nullptr;
     m_precSpacingSlider = nullptr;
     m_precSpacingInput = nullptr;
+    m_timelineToggle = nullptr;
 
     m_labelIdInput = nullptr;
     m_labelMinInput = nullptr;
@@ -263,17 +264,30 @@ void SettingsPopup::buildDisplayTab() {
             outInput = input;
         };
 
-    addRow("Circle Size:", 206.f, g_markerCircleScale, kCircleMin, kCircleMax, 0.05f, "{:.2f}", m_circleScaleSlider, m_circleScaleInput);
-    addRow("Marker Num Size:", 179.f, g_markerTextScale, kMarkerTextMin, kMarkerTextMax, 0.05f, "{:.2f}", m_markerTextSlider, m_markerTextInput);
-    addRow("HUD Text Size:", 152.f, g_hudTextScale, kHudTextMin, kHudTextMax, 0.05f, "{:.2f}", m_hudTextSlider, m_hudTextInput);
-    addRow("HUD Line Spacing:", 125.f, g_hudLineSpacing, kHudSpaceMin, kHudSpaceMax, 2.0f, "{:.1f}", m_hudSpacingSlider, m_hudSpacingInput);
-    addRow("Precision Size:", 98.f, g_precTextScale, kPrecTextMin, kPrecTextMax, 0.05f, "{:.2f}", m_precTextSlider, m_precTextInput);
-    addRow("Prec. Spacing:", 71.f, g_precLineSpacing, kPrecSpaceMin, kPrecSpaceMax, 2.0f, "{:.1f}", m_precSpacingSlider, m_precSpacingInput);
+    addRow("Circle Size:", 208.f, g_markerCircleScale, kCircleMin, kCircleMax, 0.05f, "{:.2f}", m_circleScaleSlider, m_circleScaleInput);
+    addRow("Marker Num Size:", 184.f, g_markerTextScale, kMarkerTextMin, kMarkerTextMax, 0.05f, "{:.2f}", m_markerTextSlider, m_markerTextInput);
+    addRow("HUD Text Size:", 160.f, g_hudTextScale, kHudTextMin, kHudTextMax, 0.05f, "{:.2f}", m_hudTextSlider, m_hudTextInput);
+    addRow("HUD Line Spacing:", 136.f, g_hudLineSpacing, kHudSpaceMin, kHudSpaceMax, 2.0f, "{:.1f}", m_hudSpacingSlider, m_hudSpacingInput);
+    addRow("Precision Size:", 112.f, g_precTextScale, kPrecTextMin, kPrecTextMax, 0.05f, "{:.2f}", m_precTextSlider, m_precTextInput);
+    addRow("Prec. Spacing:", 88.f, g_precLineSpacing, kPrecSpaceMin, kPrecSpaceMax, 2.0f, "{:.1f}", m_precSpacingSlider, m_precSpacingInput);
+
+    auto timelineLbl = geode::Label::create("Input Timeline:", "bigFont.fnt");
+    timelineLbl->setAnchorPoint({ 1.f, 0.5f });
+    timelineLbl->setLimitLabelWidth(134.f, 0.34f, 0.2f);
+    timelineLbl->setPosition({ 158.f, 60.f });
+    m_tabContent->addChild(timelineLbl);
+
+    m_timelineToggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(SettingsPopup::onToggleInputTimeline), 0.58f
+    );
+    m_timelineToggle->toggle(g_showInputTimeline);
+    m_timelineToggle->setPosition({ 193.f, 60.f });
+    menu->addChild(m_timelineToggle);
 
     auto resetSpr = ButtonSprite::create("Reset Visuals", "goldFont.fnt", "GJ_button_05.png", 0.8f);
     resetSpr->setScale(0.62f);
     auto resetBtn = CCMenuItemSpriteExtra::create(resetSpr, this, menu_selector(SettingsPopup::onResetVisuals));
-    resetBtn->setPosition({ centerX, 33.f });
+    resetBtn->setPosition({ centerX, 30.f });
     menu->addChild(resetBtn);
 }
 
@@ -318,7 +332,16 @@ void SettingsPopup::onResetVisuals(CCObject*) {
         if (m_precTextInput)     m_precTextInput->setString(fmt::format("{:.2f}", g_precTextScale));
         if (m_precSpacingSlider) { m_precSpacingSlider->setValue(toNorm(g_precLineSpacing, kPrecSpaceMin, kPrecSpaceMax)); m_precSpacingSlider->updateBar(); }
         if (m_precSpacingInput)  m_precSpacingInput->setString(fmt::format("{:.1f}", g_precLineSpacing));
+        if (m_timelineToggle) m_timelineToggle->toggle(g_showInputTimeline);
         m_suppressCallbacks = false;
+    }
+}
+
+void SettingsPopup::onToggleInputTimeline(CCObject* sender) {
+    if (auto toggle = typeinfo_cast<CCMenuItemToggler*>(sender)) {
+        g_showInputTimeline = !toggle->isToggled();
+        saveVisualSettings();
+        triggerVisualRefresh();
     }
 }
 

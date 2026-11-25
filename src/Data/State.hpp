@@ -8,6 +8,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <cstdint>
 
 extern std::map<std::string, FrameWindowPreset> g_windowPresets;
 extern std::map<std::string, LabelPreset> g_labelPresets;
@@ -38,6 +39,9 @@ extern std::atomic<bool> g_isCalculating;
 extern std::atomic<float> g_calcProgress;
 extern std::atomic<bool> g_isLStarDirty;
 extern std::chrono::steady_clock::time_point g_lastAutoSaveTime;
+
+extern bool g_showInputTimeline;
+extern std::atomic<uint64_t> g_actionsRevision;
 
 extern std::vector<double> g_vBase, g_vN, g_vF, g_vC, g_vNF, g_vNC, g_vFC, g_vNFC;
 
