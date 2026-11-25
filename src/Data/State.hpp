@@ -52,6 +52,11 @@ inline std::string formatWindowVal(double val) {
     return oss.str();
 }
 
+inline std::string formatWindowInput(const FrameAction& act) {
+    if (act.isWindowEmpty) return "";
+    return formatWindowVal(act.frameWindow);
+}
+
 // 生成二维 window 预设键：格式为 "if_window"，例如 "1_5" 或 "2_5"
 inline std::string makeWindowPresetKey(int ifCount, double val) {
     if (ifCount < 1) ifCount = 1;

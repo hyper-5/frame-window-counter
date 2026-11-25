@@ -506,7 +506,7 @@ void FrameActionPopup::refreshList(bool rebuildKeys) {
 
             if (auto winInput = static_cast<TextInput*>(cell->getChildByID("win-input"_spr))) {
                 winInput->setUserObject(cocos2d::CCString::create(actionKey));
-                std::string winStr = formatWindowVal(action.frameWindow);
+                std::string winStr = formatWindowInput(action);
                 if (winInput->getString() != winStr) winInput->setString(winStr);
             }
 
@@ -582,9 +582,12 @@ CCNode* FrameActionPopup::createCellTemplate(int index) {
         std::string actionKey = strObj->getCString();
 
         if (g_frameActions.contains(actionKey)) {
+            auto& act = g_frameActions[actionKey];
+            bool empty = text.empty();
             double fwVal = parseWindowExpr(text, 1.0);
-            if (std::abs(g_frameActions[actionKey].frameWindow - fwVal) > 1e-6) {
-                g_frameActions[actionKey].frameWindow = fwVal;
+            if (act.isWindowEmpty != empty || std::abs(act.frameWindow - fwVal) > 1e-6) {
+                act.isWindowEmpty = empty;
+                act.frameWindow = fwVal;
                 saveFrames();
             }
         }

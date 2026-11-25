@@ -1102,17 +1102,18 @@ class $modify(MyPlayLayer, PlayLayer) {
         m_fields->m_timelineWinInput->setFilter("0123456789./");
         m_fields->m_timelineWinInput->setNumericMode(true);
         m_fields->m_timelineWinInput->setCallback([this](std::string const& text) {
-            if (m_fields->m_suppressTimelineInput || text.empty()) return;
+            if (m_fields->m_suppressTimelineInput) return;
             if (m_fields->m_activeTimelineKey.empty()) return;
 
             auto it = g_frameActions.find(m_fields->m_activeTimelineKey);
             if (it == g_frameActions.end()) return;
 
+            bool empty = text.empty();
             double fwVal = parseWindowExpr(text, 1.0);
-            if (std::abs(it->second.frameWindow - fwVal) > 1e-6) {
+            if (it->second.isWindowEmpty != empty || std::abs(it->second.frameWindow - fwVal) > 1e-6) {
+                it->second.isWindowEmpty = empty;
                 it->second.frameWindow = fwVal;
                 saveFrames();
-                // 同步版本号，避免用户正在输入 "1." 或 "1/" 时被下一帧刷新覆写
                 m_fields->m_lastTimelineRevision = g_actionsRevision.load(std::memory_order_relaxed);
                 this->recalculateAndRefreshHUD();
             }
@@ -1190,7 +1191,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                     act.isHold ? ccColor3B{ 255, 165, 0 } : ccColor3B{ 255, 255, 255 }
                 );
 
-                std::string winStr = formatWindowVal(act.frameWindow);
+                std::string winStr = formatWindowInput(act);
                 if (keyChanged || m_fields->m_timelineWinInput->getString() != winStr) {
                     m_fields->m_suppressTimelineInput = true;
                     m_fields->m_timelineWinInput->setString(winStr);

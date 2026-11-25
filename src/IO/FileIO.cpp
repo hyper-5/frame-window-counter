@@ -304,6 +304,12 @@ namespace FileIO {
                 }
             }
 
+            if (ext == ".slc" || ext == ".gdr" || ext == ".gdr2" || ext == ".cml") {
+                for (auto& act : newActions) {
+                    act.isWindowEmpty = true;
+                }
+            }
+
             geode::queueInMainThread([newActions, parsedFps, updateFps, onSuccessCallback]() {
                 if (newActions.empty()) {
                     auto alert = FLAlertLayer::create("Error", "No valid frames found or empty file.", "OK");
