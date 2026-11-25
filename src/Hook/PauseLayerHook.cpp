@@ -6,26 +6,44 @@
 using namespace geode::prelude;
 
 class $modify(MyPauseLayer, PauseLayer) {
+    static void onModify(auto& self) {
+        (void)self.setHookPriorityAfterPost("PauseLayer::customSetup", "geode.node-ids");
+    }
 
-    //暂停界面初始化与自定义按钮构建
     void customSetup() {
         PauseLayer::customSetup();
         loadModData();
+
+        auto spr = CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png");
+        if (!spr) return;
+        spr->setScale(0.8f);
+
+        auto btn = CCMenuItemSpriteExtra::create(
+            spr,
+            this,
+            menu_selector(MyPauseLayer::onOpenEditor)
+        );
+        btn->setID("frame-editor-btn"_spr);
+
         auto rightMenu = this->getChildByID("right-button-menu");
+        if (!rightMenu) {
+            rightMenu = this->getChildByIDRecursive("right-button-menu");
+        }
+
         if (rightMenu) {
-            auto btn = CCMenuItemSpriteExtra::create(
-                CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png"),
-                this,
-                menu_selector(MyPauseLayer::onOpenEditor)
-            );
-            btn->setScale(0.8f);
-            btn->setID("frame-editor-btn"_spr);
             rightMenu->addChild(btn);
             rightMenu->updateLayout();
         }
+        else {
+            auto winSize = CCDirector::sharedDirector()->getWinSize();
+            auto fallbackMenu = CCMenu::create();
+            fallbackMenu->setID("frame-editor-fallback-menu"_spr);
+            fallbackMenu->setPosition({ winSize.width - 36.f, winSize.height / 2.f });
+            fallbackMenu->addChild(btn);
+            this->addChild(fallbackMenu, 10);
+        }
     }
 
-    //点击暂停界面按钮打开帧数编辑窗口
     void onOpenEditor(CCObject*) {
         if (auto popup = FrameActionPopup::create()) {
             popup->setID("FrameActionPopup"_spr);

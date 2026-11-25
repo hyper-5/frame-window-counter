@@ -16,6 +16,9 @@
     "utility",
     "customization"
   ],
+  "dependencies": {
+    "geode.node-ids": ">=1.24.0-beta.1"
+  },
   "links": {
     "homepage": "https://space.bilibili.com/3494358087108748",
     "source": "https://github.com/hyper-5/frame-window-counter"
