@@ -206,17 +206,18 @@ static void parse_v1_to_v6(CmlReader &cml, uint64_t version,
 
   int64_t frame = 0;
   for (size_t i = 0; i < input_count; ++i) {
-    frame += cml.read_var_i64();
-    if (frame < 0)
-      throw std::runtime_error("CML input frame became negative");
-    uint8_t flags = cml.read_u8();
-    bool isPlayer2 = (flags & 0x02) != 0;
+      frame += cml.read_var_i64();
+      if (frame < 0)
+          throw std::runtime_error("CML input frame became negative");
+      uint8_t flags = cml.read_u8();
+      bool isHold = (flags & 0x01) != 0;
+      bool isPlayer2 = (flags & 0x02) != 0;
 
-    int32_t actual_frame = (version >= 5 && version <= 6)
-                               ? static_cast<int32_t>(frame / 1000000)
-                               : static_cast<int32_t>(frame);
+      int32_t actual_frame = (version >= 5 && version <= 6)
+          ? static_cast<int32_t>(frame / 1000000)
+          : static_cast<int32_t>(frame);
 
-    res.actions.push_back({actual_frame, false, 1.0, isPlayer2, 1});
+      res.actions.push_back({ actual_frame, false, 1.0, isPlayer2, 1, isHold });
   }
 }
 
@@ -265,9 +266,10 @@ static void parse_v7(const std::vector<uint8_t> &decompressed,
     int32_t frame = static_cast<int32_t>(s / CML_V7_SUBTICK_SCALE);
 
     uint8_t flags = bits.read_byte();
+    bool isHold = (flags & 0x01) != 0;
     bool isPlayer2 = (flags & 0x02) != 0;
 
-    res.actions.push_back({frame, false, 1.0, isPlayer2, 1});
+    res.actions.push_back({ frame, false, 1.0, isPlayer2, 1, isHold });
   }
 }
 

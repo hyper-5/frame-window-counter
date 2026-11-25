@@ -477,6 +477,11 @@ void FrameActionPopup::refreshList(bool rebuildKeys) {
 
             if (auto frameText = static_cast<CCLabelBMFont*>(cell->getChildByID("frame-text"_spr))) {
                 frameText->setString(fmt::format("Frame: {}", action.frame).c_str());
+                frameText->setColor(
+                    action.isHold
+                    ? ccColor3B{ 255, 165, 0 }   // Hold: 橙色
+                    : ccColor3B{ 255, 255, 255 } // Release: 白色
+                );
             }
 
             if (auto menu = cell->getChildByType<CCMenu>(0)) {
@@ -653,7 +658,10 @@ void FrameActionPopup::onTogglePlayer(CCObject* sender) {
     auto it = std::lower_bound(g_tickActionsCache.begin(), g_tickActionsCache.end(), action.frame,
         [](const FrameAction& a, int frame) { return a.frame < frame; });
     while (it != g_tickActionsCache.end() && it->frame == action.frame) {
-        if (it->isPlayer2 != isP2 && std::abs(it->frameWindow - action.frameWindow) < 1e-6 && it->ifCount == action.ifCount) {
+        if (it->isPlayer2 != isP2 &&
+            std::abs(it->frameWindow - action.frameWindow) < 1e-6 &&
+            it->ifCount == action.ifCount &&
+            it->isHold == action.isHold) {
             it->isPlayer2 = isP2;
             break;
         }
@@ -835,6 +843,9 @@ void FrameActionPopup::mergeDuplicateFrames() {
             // 任一动作被激活则合并后保持激活
             if (act.shouldDraw) {
                 mergedList.back().shouldDraw = true;
+            }
+            if (act.isHold) {
+                mergedList.back().isHold = true;
             }
             // 保留该帧第一个动作的 frameWindow 作为宏观入口窗口
         }

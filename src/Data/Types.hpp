@@ -186,6 +186,7 @@ struct FrameAction {
     double frameWindow = 1.0;
     bool isPlayer2 = false;
     int ifCount = 1;                                        // 动作自带的 I/F，普通点击为 1
+    bool isHold = false;                                    // true = Hold , false = Release
 
     bool operator==(const FrameAction& other) const = default;
 };

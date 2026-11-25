@@ -1112,7 +1112,7 @@ void SettingsPopup::buildCalcTab() {
     float startY = 204.f;
     float stepY = 26.f;
 
-    createRow("TPS:", m_tpsInput, startY);
+    createRow("Windows FPS:", m_tpsInput, startY);
     createRow("Respawn (s):", m_respawnInput, startY - stepY * 1);
     createRow("Target (s):", m_targetTimeInput, startY - stepY * 2);
     createRow("Nerve (K_T):", m_nerveInput, startY - stepY * 3);

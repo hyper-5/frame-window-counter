@@ -48,7 +48,8 @@ namespace FileIO {
                         {"input", inputCounter++},
                         {"timePosition", act.frame},
                         {"frameWindow", fw},
-                        {"isPlayer2", act.isPlayer2}
+                        {"isPlayer2", act.isPlayer2},
+                        {"isHold", act.isHold}
                         }));
                 }
                 else {
@@ -59,7 +60,8 @@ namespace FileIO {
                         {"input", inputCounter++},
                         {"timePosition", base_frame},
                         {"frameWindow", w_main},
-                        {"isPlayer2", act.isPlayer2}
+                        {"isPlayer2", act.isPlayer2},
+                        {"isHold", act.isHold}
                         }));
 
                     for (int s = 1; s < k; ++s) {
@@ -68,7 +70,8 @@ namespace FileIO {
                             {"input", inputCounter++},
                             {"timePosition", sub_frame},
                             {"frameWindow", w_sub},
-                            {"isPlayer2", act.isPlayer2}
+                            {"isPlayer2", act.isPlayer2},
+                            {"isHold", act.isHold}
                             }));
                     }
                 }
@@ -97,7 +100,9 @@ namespace FileIO {
             for (const auto& act : exportList) {
                 int32_t frame = act.frame;
                 double frameWindow = act.frameWindow;
-                uint8_t flags = (act.shouldDraw ? 1 : 0) | (act.isPlayer2 ? 2 : 0);
+                uint8_t flags = (act.shouldDraw ? 1 : 0)
+                    | (act.isPlayer2 ? 2 : 0)
+                    | (act.isHold ? 4 : 0);
                 int32_t ifCount = act.ifCount;
 
                 f.write(reinterpret_cast<const char*>(&frame), sizeof(int32_t));
@@ -161,7 +166,14 @@ namespace FileIO {
                         if (ifCount < 1) ifCount = 1;
                     }
 
-                    newActions.push_back({ frame, (flags & 1) != 0, frameWindow, (flags & 2) != 0, ifCount });
+                    newActions.push_back({
+                        frame,
+                        (flags & 1) != 0,
+                        frameWindow,
+                        (flags & 2) != 0,
+                        ifCount,
+                        (flags & 4) != 0
+                        });
                 }
             }
             else if (ext == ".json") {
@@ -200,6 +212,18 @@ namespace FileIO {
                             if (ifVal < 1) ifVal = 1;
                             act.ifCount = ifVal;
 
+                            bool isHold = false;
+                            if (item.contains("isHold")) {
+                                isHold = item["isHold"].asBool().unwrapOr(false);
+                            }
+                            else if (item.contains("hold")) {
+                                isHold = item["hold"].asBool().unwrapOr(false);
+                            }
+                            else if (item.contains("down")) {
+                                isHold = item["down"].asBool().unwrapOr(false);
+                            }
+                            act.isHold = isHold;
+
                             newActions.push_back(act);
                         }
                     }
@@ -217,7 +241,15 @@ namespace FileIO {
                 for (const auto& atomVariant : replay.m_atoms.m_atoms) {
                     if (const auto* actionAtom = std::get_if<slc::ActionAtom>(&atomVariant)) {
                         for (const auto& action : actionAtom->m_actions) {
-                            newActions.push_back({ static_cast<int>(action.m_frame), false, 1.0, action.m_player2, 1 });
+                            if (!action.isPlayer()) continue;
+                            newActions.push_back({
+                                static_cast<int>(action.m_frame),
+                                false,
+                                1.0,
+                                action.m_player2,
+                                1,
+                                action.m_holding
+                                });
                         }
                     }
                 }
@@ -249,9 +281,18 @@ namespace FileIO {
                     }
                     else throw std::runtime_error("Failed to convert .gdr file");
                 }
-                std::sort(inputs.begin(), inputs.end(), [](const auto& a, const auto& b) { return a.frame < b.frame; });
+                std::stable_sort(inputs.begin(), inputs.end(), [](const auto& a, const auto& b) {
+                    return a.frame < b.frame;
+                    });
                 for (const auto& input : inputs) {
-                    newActions.push_back({ static_cast<int>(input.frame), false, 1.0, input.player2, 1 });
+                    newActions.push_back({
+                        static_cast<int>(input.frame),
+                        false,
+                        1.0,
+                        input.player2,
+                        1,
+                        input.down
+                        });
                 }
             }
             else if (ext == ".cml") {

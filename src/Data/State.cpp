@@ -245,7 +245,9 @@ void doAutoSave(GJGameLevel* level) {
             for (const auto& act : exportList) {
                 int32_t frame = act.frame;
                 double frameWindow = act.frameWindow;
-                uint8_t flags = (act.shouldDraw ? 1 : 0) | (act.isPlayer2 ? 2 : 0);
+                uint8_t flags = (act.shouldDraw ? 1 : 0)
+                    | (act.isPlayer2 ? 2 : 0)
+                    | (act.isHold ? 4 : 0);
                 int32_t ifCount = act.ifCount;
 
                 f.write(reinterpret_cast<const char*>(&frame), sizeof(int32_t));
