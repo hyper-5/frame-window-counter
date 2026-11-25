@@ -34,6 +34,8 @@ bool MobileImportPopup::init(std::function<void()> onSuccessCallback) {
 
     // 居中滚动画布
     m_scrollLayer = ScrollLayer::create({ 340.f, 160.f });
+    m_scrollLayer->ignoreAnchorPointForPosition(false);
+    m_scrollLayer->setAnchorPoint({ 0.f, 0.f });
     m_scrollLayer->setPosition({ (size.width - 340.f) / 2.f, 30.f });
     m_mainLayer->addChild(m_scrollLayer);
 
