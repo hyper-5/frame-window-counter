@@ -25,11 +25,14 @@ protected:
     cocos2d::CCLabelBMFont* m_totalPagesLabel = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
+    float m_lastClipScrollY = -999999.f;
 
     bool init() override;
     void updateFinalLStarText();
     void onCycleLStar(cocos2d::CCObject*);
     void update(float dt) override;
+    void visit() override;
+    void updateScrollClipping(bool force = false);
 
     void onAddFramePrompt(cocos2d::CCObject*);
     void onClearAll(cocos2d::CCObject*);
@@ -49,7 +52,6 @@ protected:
     void onImportGDR(cocos2d::CCObject*);
     void onMergeFrames(cocos2d::CCObject* sender);
     void mergeDuplicateFrames();
-    void updateScrollClipping();
 
 public:
     static FrameActionPopup* create();

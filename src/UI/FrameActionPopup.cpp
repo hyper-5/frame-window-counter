@@ -237,10 +237,13 @@ void FrameActionPopup::onCycleLStar(CCObject*) {
     updateFinalLStarText();
 }
 
+void FrameActionPopup::visit() {
+    this->updateScrollClipping(false);
+    Popup::visit();
+}
+
 void FrameActionPopup::update(float dt) {
     bool isCalc = g_isCalculating.load();
-
-    this->updateScrollClipping();
 
     if (isCalc) {
         if (!m_computingLabel->isVisible()) m_computingLabel->setVisible(true);
@@ -321,7 +324,7 @@ void FrameActionPopup::onDeleteFrame(CCObject* sender) {
         }
     }
 
-    this->updateScrollClipping();
+    this->updateScrollClipping(true);
 }
 
 void FrameActionPopup::jumpToFrame(int targetFrame) {
@@ -509,7 +512,7 @@ void FrameActionPopup::refreshList(bool rebuildKeys) {
     }
     m_scrollLayer->moveToTop();
 
-    this->updateScrollClipping();
+    this->updateScrollClipping(true);
 }
 
 CCNode* FrameActionPopup::createCellTemplate(int index) {
@@ -785,7 +788,7 @@ void FrameActionPopup::scrollToCell(int indexInPage) {
 
     m_scrollLayer->m_contentLayer->setPositionY(scrollY);
 
-    this->updateScrollClipping();
+    this->updateScrollClipping(true);
 }
 
 void FrameActionPopup::onMergeFrames(CCObject*) {
@@ -890,16 +893,21 @@ void FrameActionPopup::mergeDuplicateFrames() {
     stopAlertAnimation(alert);
 }
 
-void FrameActionPopup::updateScrollClipping() {
+void FrameActionPopup::updateScrollClipping(bool force) {
     if (!m_scrollLayer || !m_scrollLayer->m_contentLayer) return;
     auto contentNode = m_scrollLayer->m_contentLayer->getChildByID("content-node"_spr);
     if (!contentNode) return;
+
+    float contentY = m_scrollLayer->m_contentLayer->getPositionY();
+    if (!force && std::abs(contentY - m_lastClipScrollY) < 0.01f) {
+        return;
+    }
+    m_lastClipScrollY = contentY;
 
     int startIdx = m_currentPage * m_itemsPerPage;
     int endIdx = std::min(static_cast<int>(m_sortedKeys.size()), startIdx + m_itemsPerPage);
     int displayCount = std::max(0, endIdx - startIdx);
 
-    float contentY = m_scrollLayer->m_contentLayer->getPositionY();
     float viewHeight = m_scrollLayer->getContentHeight();
 
     auto syncInputState = [](TextInput* input, bool visible, bool enabled) {
