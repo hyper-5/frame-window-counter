@@ -358,37 +358,19 @@ void FrameActionPopup::onOpenSettings(CCObject*) {
 void FrameActionPopup::onToggleMod(CCObject* sender) {
     g_modEnabled = !g_modEnabled;
     saveSettings();
-    triggerHUDRefresh();
+    triggerVisualRefresh();
 
     if (!g_modEnabled) {
-        if (auto pl = GameManager::sharedState()->getPlayLayer()) {
-            if (auto hud = pl->getChildByID("frame-window-hud"_spr)) hud->removeFromParent();
-            if (pl->m_uiLayer) {
-                if (auto hud = pl->m_uiLayer->getChildByID("frame-window-hud"_spr)) hud->removeFromParent();
-            }
-            if (auto prec = pl->getChildByID("frame-window-prec"_spr)) prec->removeFromParent();
-            if (pl->m_uiLayer) {
-                if (auto prec = pl->m_uiLayer->getChildByID("frame-window-prec"_spr)) prec->removeFromParent();
-            }
-            if (pl->m_uiLayer) {
-                auto children = pl->m_uiLayer->getChildren();
-                if (children) {
-                    for (int i = children->count() - 1; i >= 0; i--) {
-                        auto child = static_cast<CCNode*>(children->objectAtIndex(i));
-                        if (child->getID() == "frame-window-marker"_spr) {
-                            child->removeFromParent();
-                        }
+        if (auto pl = PlayLayer::get(); pl && pl->m_uiLayer) {
+            if (auto children = pl->m_uiLayer->getChildren()) {
+                for (int i = children->count() - 1; i >= 0; i--) {
+                    auto child = static_cast<CCNode*>(children->objectAtIndex(i));
+                    if (child->getID() == "frame-window-marker"_spr) {
+                        child->removeFromParent();
                     }
                 }
             }
-            if (auto tl = pl->getChildByID("frame-window-timeline"_spr)) tl->removeFromParent();
-            if (pl->m_uiLayer) {
-                if (auto tl = pl->m_uiLayer->getChildByID("frame-window-timeline"_spr)) tl->removeFromParent();
-            }
         }
-    }
-    else {
-        g_forcePrecRedraw = true;
     }
 }
 
