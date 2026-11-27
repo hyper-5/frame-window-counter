@@ -18,6 +18,7 @@
 #include <optional>
 #include <span>
 #include <cctype>
+#include <string>
 
 using namespace geode::prelude;
 
