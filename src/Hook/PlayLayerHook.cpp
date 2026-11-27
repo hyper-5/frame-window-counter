@@ -48,6 +48,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         Ref<CCNode> m_timelineInfoNode = nullptr;
         Ref<geode::Label> m_timelineFrameLabel = nullptr;
         Ref<geode::TextInput> m_timelineWinInput = nullptr;
+        Ref<CCMenuItemToggler> m_timelineDrawToggle = nullptr;
         int m_lastTimelineFrame = -999999;
         uint64_t m_lastTimelineRevision = 0;
         std::string m_activeTimelineKey = "";
@@ -1040,6 +1041,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         m_fields->m_timelineDraw = nullptr;
         m_fields->m_timelineInfoNode = nullptr;
         m_fields->m_timelineFrameLabel = nullptr;
+        m_fields->m_timelineDrawToggle = nullptr;
         m_fields->m_activeTimelineKey.clear();
         m_fields->m_lastTimelineFrame = -999999;
         m_fields->m_lastTimelineRevision = 0;
@@ -1092,12 +1094,12 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         auto winLbl = geode::Label::create("Window:", "bigFont.fnt");
         winLbl->setAnchorPoint({ 1.f, 0.5f });
-        winLbl->setPosition({ 4.f, -33.f });
+        winLbl->setPosition({ -8.f, -33.f });
         winLbl->setScale(0.32f);
         m_fields->m_timelineInfoNode->addChild(winLbl);
 
         m_fields->m_timelineWinInput = geode::TextInput::create(58.f, "1");
-        m_fields->m_timelineWinInput->setPosition({ 29.f, -33.f });
+        m_fields->m_timelineWinInput->setPosition({ 17.f, -33.f });
         m_fields->m_timelineWinInput->setScale(0.68f);
         m_fields->m_timelineWinInput->setFilter("0123456789./");
         m_fields->m_timelineWinInput->setNumericMode(true);
@@ -1119,9 +1121,38 @@ class $modify(MyPlayLayer, PlayLayer) {
             }
             });
         m_fields->m_timelineInfoNode->addChild(m_fields->m_timelineWinInput);
+
+        auto toggleMenu = CCMenu::create();
+        toggleMenu->setPosition({ 0.f, 0.f });
+        m_fields->m_timelineInfoNode->addChild(toggleMenu);
+
+        m_fields->m_timelineDrawToggle = CCMenuItemToggler::createWithStandardSprites(
+            this,
+            menu_selector(MyPlayLayer::onToggleTimelineDraw),
+            0.55f
+        );
+        m_fields->m_timelineDrawToggle->setPosition({ 52.f, -33.f });
+        toggleMenu->addChild(m_fields->m_timelineDrawToggle);
     }
 
-    void updateInputTimeline(int currentFrame, bool force = false) {
+    void onToggleTimelineDraw(CCObject* sender) {
+        if (m_fields->m_activeTimelineKey.empty()) return;
+        auto toggle = typeinfo_cast<CCMenuItemToggler*>(sender);
+        if (!toggle) return;
+
+        auto it = g_frameActions.find(m_fields->m_activeTimelineKey);
+        if (it == g_frameActions.end()) return;
+
+        bool newDraw = !toggle->isToggled();
+        if (it->second.shouldDraw != newDraw) {
+            it->second.shouldDraw = newDraw;
+            saveFrames();
+            this->recalculateAndRefreshHUD();
+            this->updateInputTimeline(m_fields->m_currentFrame, true, false);
+        }
+    }
+
+    void updateInputTimeline(int currentFrame, bool force = false, bool syncToggle = true) {
         if (!g_modEnabled || !g_showInputTimeline) {
             if (m_fields->m_timelineNode) {
                 this->destroyInputTimeline();
@@ -1168,9 +1199,10 @@ class $modify(MyPlayLayer, PlayLayer) {
                 bool isCurrent = (it->frame == currentFrame);
                 if (isCurrent) hitCurrentFrame = true;
 
+                float alpha = it->shouldDraw ? 1.f : 0.28f;
                 ccColor4F color = it->isHold
-                    ? ccColor4F{ 1.f, 0.65f, 0.f, 1.f }  // Hold: 橙色
-                : ccColor4F{ 1.f, 1.f, 1.f, 1.f };   // Release: 白色
+                    ? ccColor4F{ 1.f * alpha, 0.65f * alpha, 0.f, alpha }         // Hold: 橙色（未激活变暗半透明）
+                : ccColor4F{ 1.f * alpha, 1.f * alpha, 1.f * alpha, alpha };  // Release: 白色（未激活变暗半透明）
 
                 float thickness = isCurrent ? 1.25f : 0.75f;
                 m_fields->m_timelineDraw->drawSegment({ x, 0.f }, { x, kLineHeight }, thickness, color);
@@ -1190,6 +1222,11 @@ class $modify(MyPlayLayer, PlayLayer) {
                 m_fields->m_timelineFrameLabel->setColor(
                     act.isHold ? ccColor3B{ 255, 165, 0 } : ccColor3B{ 255, 255, 255 }
                 );
+
+                if (syncToggle && m_fields->m_timelineDrawToggle &&
+                    m_fields->m_timelineDrawToggle->isToggled() != act.shouldDraw) {
+                    m_fields->m_timelineDrawToggle->toggle(act.shouldDraw);
+                }
 
                 std::string winStr = formatWindowInput(act);
                 if (keyChanged || m_fields->m_timelineWinInput->getString() != winStr) {
