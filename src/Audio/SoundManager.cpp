@@ -1,4 +1,5 @@
 #include "SoundManager.hpp"
+#include "../Data/State.hpp"
 #include <vector>
 
 using namespace geode::prelude;
@@ -17,7 +18,7 @@ bool SoundManager::ensureChannelGroup(FMOD::System* sys) {
 }
 
 void SoundManager::playSound(const std::string& path) {
-    if (path.empty()) return;
+    if (!g_playAudio || path.empty()) return;
 
     auto audioEngine = FMODAudioEngine::sharedEngine();
     if (!audioEngine || !audioEngine->m_system) return;

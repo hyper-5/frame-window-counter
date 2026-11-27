@@ -49,6 +49,7 @@ protected:
     void onImportGDR(cocos2d::CCObject*);
     void onMergeFrames(cocos2d::CCObject* sender);
     void mergeDuplicateFrames();
+    void updateScrollClipping();
 
 public:
     static FrameActionPopup* create();

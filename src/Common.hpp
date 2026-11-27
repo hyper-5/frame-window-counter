@@ -31,6 +31,10 @@ constexpr float DEFAULT_PREC_TEXT_SCALE = 0.3f; // 左下角 Precision 文字缩
 constexpr float DEFAULT_PREC_LINE_SPACING = 12.0f; // 左下角 Precision 行间距
 
 constexpr bool DEFAULT_SHOW_INPUT_TIMELINE = true; // 默认开启实时输入时间轴图表
+constexpr bool DEFAULT_SHOW_HUD_LABELS = true; // 默认显示左上角计数标签
+constexpr bool DEFAULT_AUTO_SAVE_ENABLED = true; // 默认开启自动保存
+constexpr int DEFAULT_AUTO_SAVE_INTERVAL = AUTOSAVETIME; // 默认自动保存间隔 (秒)
+constexpr bool DEFAULT_PLAY_AUDIO = true; // 默认开启音频播放
 
 inline void stopAlertAnimation(FLAlertLayer* alert) {
     if (!alert) return;

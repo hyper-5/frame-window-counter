@@ -84,11 +84,14 @@ class $modify(MyDirector, CCDirector) {
             return;
         }
 
-        auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>(now - g_lastAutoSaveTime).count() >= AUTOSAVETIME) {
-            g_lastAutoSaveTime = now;
-            if (auto pl = PlayLayer::get(); pl && pl->m_level) {
-                doAutoSave(pl->m_level);
+        if (g_autoSaveEnabled) {
+            int intervalSec = std::max(1, g_autoSaveInterval);
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - g_lastAutoSaveTime).count() >= intervalSec) {
+                g_lastAutoSaveTime = now;
+                if (auto pl = PlayLayer::get(); pl && pl->m_level) {
+                    doAutoSave(pl->m_level);
+                }
             }
         }
 

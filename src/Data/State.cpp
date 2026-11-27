@@ -39,6 +39,11 @@ float g_precTextScale = DEFAULT_PREC_TEXT_SCALE;
 float g_precLineSpacing = DEFAULT_PREC_LINE_SPACING;
 
 bool g_showInputTimeline = DEFAULT_SHOW_INPUT_TIMELINE;
+bool g_showHudLabels = DEFAULT_SHOW_HUD_LABELS;
+bool g_autoSaveEnabled = DEFAULT_AUTO_SAVE_ENABLED;
+int g_autoSaveInterval = DEFAULT_AUTO_SAVE_INTERVAL;
+bool g_playAudio = DEFAULT_PLAY_AUDIO;
+
 std::atomic<uint64_t> g_actionsRevision{ 1 };
 
 void saveVisualSettings() {
@@ -49,6 +54,7 @@ void saveVisualSettings() {
     Mod::get()->setSavedValue("visual-prec-text-scale", static_cast<double>(g_precTextScale));
     Mod::get()->setSavedValue("visual-prec-line-spacing", static_cast<double>(g_precLineSpacing));
     Mod::get()->setSavedValue("visual-show-input-timeline", g_showInputTimeline);
+    Mod::get()->setSavedValue("visual-show-hud-labels", g_showHudLabels);
 }
 
 void resetVisualSettingsToDefault() {
@@ -59,6 +65,7 @@ void resetVisualSettingsToDefault() {
     g_precTextScale = DEFAULT_PREC_TEXT_SCALE;
     g_precLineSpacing = DEFAULT_PREC_LINE_SPACING;
     g_showInputTimeline = DEFAULT_SHOW_INPUT_TIMELINE;
+    g_showHudLabels = DEFAULT_SHOW_HUD_LABELS;
     saveVisualSettings();
     triggerVisualRefresh();
 }
@@ -119,6 +126,10 @@ void loadModData() {
     g_precTextScale = static_cast<float>(Mod::get()->getSavedValue<double>("visual-prec-text-scale", DEFAULT_PREC_TEXT_SCALE));
     g_precLineSpacing = static_cast<float>(Mod::get()->getSavedValue<double>("visual-prec-line-spacing", DEFAULT_PREC_LINE_SPACING));
     g_showInputTimeline = Mod::get()->getSavedValue<bool>("visual-show-input-timeline", DEFAULT_SHOW_INPUT_TIMELINE);
+    g_showHudLabels = Mod::get()->getSavedValue<bool>("visual-show-hud-labels", DEFAULT_SHOW_HUD_LABELS);
+    g_autoSaveEnabled = Mod::get()->getSavedValue<bool>("auto-save-enabled", DEFAULT_AUTO_SAVE_ENABLED);
+    g_autoSaveInterval = std::max(1, Mod::get()->getSavedValue<int>("auto-save-interval", DEFAULT_AUTO_SAVE_INTERVAL));
+    g_playAudio = Mod::get()->getSavedValue<bool>("play-audio", DEFAULT_PLAY_AUDIO);
 
     for (int i = 0; i <= 99; i++) {
         std::string key = std::to_string(i);
@@ -159,6 +170,9 @@ void saveSettings() {
     Mod::get()->setSavedValue("show-nc", g_showNC);
     Mod::get()->setSavedValue("show-fc", g_showFC);
     Mod::get()->setSavedValue("show-nfc", g_showNFC);
+    Mod::get()->setSavedValue("auto-save-enabled", g_autoSaveEnabled);
+    Mod::get()->setSavedValue("auto-save-interval", g_autoSaveInterval);
+    Mod::get()->setSavedValue("play-audio", g_playAudio);
 
     saveVisualSettings();
 }
@@ -184,7 +198,7 @@ void saveFrames() {
 }
 
 void doAutoSave(GJGameLevel* level) {
-    if (g_frameActions.empty()) return;
+    if (!g_autoSaveEnabled || g_frameActions.empty()) return;
 
     // 更新自动保存时间戳
     g_lastAutoSaveTime = std::chrono::steady_clock::now();

@@ -240,6 +240,8 @@ void FrameActionPopup::onCycleLStar(CCObject*) {
 void FrameActionPopup::update(float dt) {
     bool isCalc = g_isCalculating.load();
 
+    this->updateScrollClipping();
+
     if (isCalc) {
         if (!m_computingLabel->isVisible()) m_computingLabel->setVisible(true);
         if (m_finalLStarBtn->isVisible()) m_finalLStarBtn->setVisible(false);
@@ -318,6 +320,8 @@ void FrameActionPopup::onDeleteFrame(CCObject* sender) {
             m_scrollLayer->m_contentLayer->setPositionY(savedScrollY);
         }
     }
+
+    this->updateScrollClipping();
 }
 
 void FrameActionPopup::jumpToFrame(int targetFrame) {
@@ -522,6 +526,8 @@ void FrameActionPopup::refreshList(bool rebuildKeys) {
         }
     }
     m_scrollLayer->moveToTop();
+
+    this->updateScrollClipping();
 }
 
 CCNode* FrameActionPopup::createCellTemplate(int index) {
@@ -796,6 +802,8 @@ void FrameActionPopup::scrollToCell(int indexInPage) {
     if (scrollY > maxY) scrollY = maxY;
 
     m_scrollLayer->m_contentLayer->setPositionY(scrollY);
+
+    this->updateScrollClipping();
 }
 
 void FrameActionPopup::onMergeFrames(CCObject*) {
@@ -898,4 +906,74 @@ void FrameActionPopup::mergeDuplicateFrames() {
     );
     alert->show();
     stopAlertAnimation(alert);
+}
+
+void FrameActionPopup::updateScrollClipping() {
+    if (!m_scrollLayer || !m_scrollLayer->m_contentLayer) return;
+    auto contentNode = m_scrollLayer->m_contentLayer->getChildByID("content-node"_spr);
+    if (!contentNode) return;
+
+    int startIdx = m_currentPage * m_itemsPerPage;
+    int endIdx = std::min(static_cast<int>(m_sortedKeys.size()), startIdx + m_itemsPerPage);
+    int displayCount = std::max(0, endIdx - startIdx);
+
+    float contentY = m_scrollLayer->m_contentLayer->getPositionY();
+    float viewHeight = m_scrollLayer->getContentHeight();
+
+    auto syncInputState = [](TextInput* input, bool visible, bool enabled) {
+        if (!input) return;
+        if (input->isVisible() != visible) {
+            input->setVisible(visible);
+        }
+        if (input->isEnabled() != enabled) {
+            input->setEnabled(enabled);
+        }
+        if (!enabled && input->isFocused()) {
+            input->unfocus();
+        }
+        };
+
+    for (int i = 0; i < m_itemsPerPage; i++) {
+        auto cell = contentNode->getChildByID(fmt::format("cell_{}", i));
+        if (!cell) continue;
+
+        auto winInput = static_cast<TextInput*>(cell->getChildByID("win-input"_spr));
+        auto ifInput = static_cast<TextInput*>(cell->getChildByID("if-input"_spr));
+
+        if (i >= displayCount) {
+            if (cell->isVisible()) cell->setVisible(false);
+            syncInputState(winInput, false, false);
+            syncInputState(ifInput, false, false);
+            continue;
+        }
+
+        float cellYInView = cell->getPositionY() + contentY;
+        float cellHalfH = cell->getContentSize().height * 0.5f;
+
+        // 只要行有一部分还在视口内就保持可见，完全超出剪切范围则直接隐藏
+        bool cellVisible = (cellYInView + cellHalfH > 0.f) && (cellYInView - cellHalfH < viewHeight);
+        if (cell->isVisible() != cellVisible) {
+            cell->setVisible(cellVisible);
+        }
+
+        auto applyInputClip = [&](TextInput* input) {
+            if (!input) return;
+            float inputHalfH = input->getScaledContentSize().height * 0.5f;
+            if (inputHalfH <= 0.f) inputHalfH = 13.f;
+
+            bool inputVisible = cellVisible &&
+                (cellYInView + inputHalfH > 0.f) &&
+                (cellYInView - inputHalfH < viewHeight);
+
+            // 仅当输入框完整处于视口内时允许点击，防止半截超出顶部/底部时点到空白处误触发
+            bool inputEnabled = inputVisible &&
+                (cellYInView - inputHalfH >= -2.f) &&
+                (cellYInView + inputHalfH <= viewHeight + 2.f);
+
+            syncInputState(input, inputVisible, inputEnabled);
+            };
+
+        applyInputClip(winInput);
+        applyInputClip(ifInput);
+    }
 }

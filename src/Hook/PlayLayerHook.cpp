@@ -382,7 +382,7 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void recalculateAndRefreshHUD() {
-        if (!g_modEnabled) {
+        if (!g_modEnabled || !g_showHudLabels) {
             if (m_fields->m_hudNode) {
                 m_fields->m_hudNode->removeFromParent();
                 m_fields->m_hudNode = nullptr;
@@ -617,7 +617,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
         m_fields->m_countLabels.clear();
 
-        if (!g_modEnabled) return;
+        if (!g_modEnabled || !g_showHudLabels) return;
 
         m_fields->m_hudNode = CCNode::create();
         m_fields->m_hudNode->setPosition({ 5.f, CCDirector::get()->getWinSize().height - 5.f });
@@ -681,7 +681,7 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void updateHUDCounts() {
-        if (!g_modEnabled) {
+        if (!g_modEnabled || !g_showHudLabels) {
             if (m_fields->m_hudNode) {
                 m_fields->m_hudNode->removeFromParent();
                 m_fields->m_hudNode = nullptr;
@@ -889,7 +889,7 @@ class $modify(MyPlayLayer, PlayLayer) {
                                 SoundManager::playSound(preset.audioPath);
                             }
                             m_fields->m_hudCounts[preset.id]++;
-                            if (preset.showInHud) {
+                            if (preset.showInHud && g_showHudLabels) {
                                 needsHudUpdate = true;
                                 updatedPresets.push_back(preset.id);
                             }

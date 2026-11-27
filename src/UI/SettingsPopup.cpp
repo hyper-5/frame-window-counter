@@ -2,6 +2,7 @@
 #include "../Data/State.hpp"
 #include "../Math/Calculator.hpp"
 #include "../Common.hpp"
+#include "../Audio/SoundManager.hpp"
 #if defined(GEODE_IS_ANDROID) || defined(GEODE_IS_IOS)
 #include "MobileAudioPickerPopup.hpp"
 #endif
@@ -101,6 +102,10 @@ void SettingsPopup::clearTabPointers() {
     m_precSpacingSlider = nullptr;
     m_precSpacingInput = nullptr;
     m_timelineToggle = nullptr;
+    m_hudLabelsToggle = nullptr;
+    m_autoSaveToggle = nullptr;
+    m_autoSaveIntervalInput = nullptr;
+    m_playAudioToggle = nullptr;
 
     m_labelIdInput = nullptr;
     m_labelMinInput = nullptr;
@@ -241,7 +246,7 @@ void SettingsPopup::buildDisplayTab() {
 
             auto input = TextInput::create(68.f, "0.0");
             input->setPosition({ 378.f, y });
-            input->setScale(0.72f);
+            input->setScale(0.68f);
             input->setFilter("0123456789.");
             input->setNumericMode(true);
             input->setString(fmt::format(fmt::runtime(fmtStr), targetVar));
@@ -264,25 +269,88 @@ void SettingsPopup::buildDisplayTab() {
             outInput = input;
         };
 
-    addRow("Circle Size:", 208.f, g_markerCircleScale, kCircleMin, kCircleMax, 0.05f, "{:.2f}", m_circleScaleSlider, m_circleScaleInput);
-    addRow("Marker Num Size:", 184.f, g_markerTextScale, kMarkerTextMin, kMarkerTextMax, 0.05f, "{:.2f}", m_markerTextSlider, m_markerTextInput);
-    addRow("HUD Text Size:", 160.f, g_hudTextScale, kHudTextMin, kHudTextMax, 0.05f, "{:.2f}", m_hudTextSlider, m_hudTextInput);
-    addRow("HUD Line Spacing:", 136.f, g_hudLineSpacing, kHudSpaceMin, kHudSpaceMax, 2.0f, "{:.1f}", m_hudSpacingSlider, m_hudSpacingInput);
-    addRow("Precision Size:", 112.f, g_precTextScale, kPrecTextMin, kPrecTextMax, 0.05f, "{:.2f}", m_precTextSlider, m_precTextInput);
-    addRow("Prec. Spacing:", 88.f, g_precLineSpacing, kPrecSpaceMin, kPrecSpaceMax, 2.0f, "{:.1f}", m_precSpacingSlider, m_precSpacingInput);
+    addRow("Circle Size:", 212.f, g_markerCircleScale, kCircleMin, kCircleMax, 0.05f, "{:.2f}", m_circleScaleSlider, m_circleScaleInput);
+    addRow("Marker Num Size:", 191.f, g_markerTextScale, kMarkerTextMin, kMarkerTextMax, 0.05f, "{:.2f}", m_markerTextSlider, m_markerTextInput);
+    addRow("HUD Text Size:", 170.f, g_hudTextScale, kHudTextMin, kHudTextMax, 0.05f, "{:.2f}", m_hudTextSlider, m_hudTextInput);
+    addRow("HUD Line Spacing:", 149.f, g_hudLineSpacing, kHudSpaceMin, kHudSpaceMax, 2.0f, "{:.1f}", m_hudSpacingSlider, m_hudSpacingInput);
+    addRow("Precision Size:", 128.f, g_precTextScale, kPrecTextMin, kPrecTextMax, 0.05f, "{:.2f}", m_precTextSlider, m_precTextInput);
+    addRow("Prec. Spacing:", 107.f, g_precLineSpacing, kPrecSpaceMin, kPrecSpaceMax, 2.0f, "{:.1f}", m_precSpacingSlider, m_precSpacingInput);
+
+    auto autoSaveLbl = geode::Label::create("Auto-Save:", "bigFont.fnt");
+    autoSaveLbl->setAnchorPoint({ 1.f, 0.5f });
+    autoSaveLbl->setLimitLabelWidth(134.f, 0.34f, 0.2f);
+    autoSaveLbl->setPosition({ 158.f, 84.f });
+    m_tabContent->addChild(autoSaveLbl);
+
+    m_autoSaveToggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(SettingsPopup::onToggleAutoSave), 0.56f
+    );
+    m_autoSaveToggle->toggle(g_autoSaveEnabled);
+    m_autoSaveToggle->setPosition({ 193.f, 84.f });
+    menu->addChild(m_autoSaveToggle);
+
+    auto intervalLbl = geode::Label::create("Interval (s):", "bigFont.fnt");
+    intervalLbl->setAnchorPoint({ 1.f, 0.5f });
+    intervalLbl->setLimitLabelWidth(128.f, 0.34f, 0.2f);
+    intervalLbl->setPosition({ 342.f, 84.f });
+    m_tabContent->addChild(intervalLbl);
+
+    m_autoSaveIntervalInput = TextInput::create(68.f, "180");
+    m_autoSaveIntervalInput->setPosition({ 378.f, 84.f });
+    m_autoSaveIntervalInput->setScale(0.68f);
+    m_autoSaveIntervalInput->setFilter("0123456789");
+    m_autoSaveIntervalInput->setNumericMode(true);
+    m_autoSaveIntervalInput->setString(std::to_string(g_autoSaveInterval));
+    m_autoSaveIntervalInput->setCallback([this](std::string const& text) {
+        if (m_suppressCallbacks || text.empty()) return;
+        try {
+            int val = std::stoi(text);
+            if (val < 1) return;
+            g_autoSaveInterval = std::clamp(val, 1, 86400);
+            saveSettings();
+        }
+        catch (...) {}
+        });
+    m_tabContent->addChild(m_autoSaveIntervalInput);
 
     auto timelineLbl = geode::Label::create("Input Timeline:", "bigFont.fnt");
     timelineLbl->setAnchorPoint({ 1.f, 0.5f });
-    timelineLbl->setLimitLabelWidth(134.f, 0.34f, 0.2f);
-    timelineLbl->setPosition({ 158.f, 60.f });
+    timelineLbl->setLimitLabelWidth(96.f, 0.34f, 0.2f);
+    timelineLbl->setPosition({ 126.f, 58.f });
     m_tabContent->addChild(timelineLbl);
 
     m_timelineToggle = CCMenuItemToggler::createWithStandardSprites(
-        this, menu_selector(SettingsPopup::onToggleInputTimeline), 0.58f
+        this, menu_selector(SettingsPopup::onToggleInputTimeline), 0.56f
     );
     m_timelineToggle->toggle(g_showInputTimeline);
-    m_timelineToggle->setPosition({ 193.f, 60.f });
+    m_timelineToggle->setPosition({ 144.f, 58.f });
     menu->addChild(m_timelineToggle);
+
+    auto hudLabelsLbl = geode::Label::create("Count Labels:", "bigFont.fnt");
+    hudLabelsLbl->setAnchorPoint({ 1.f, 0.5f });
+    hudLabelsLbl->setLimitLabelWidth(96.f, 0.34f, 0.2f);
+    hudLabelsLbl->setPosition({ 262.f, 58.f });
+    m_tabContent->addChild(hudLabelsLbl);
+
+    m_hudLabelsToggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(SettingsPopup::onToggleHudLabels), 0.56f
+    );
+    m_hudLabelsToggle->toggle(g_showHudLabels);
+    m_hudLabelsToggle->setPosition({ 280.f, 58.f });
+    menu->addChild(m_hudLabelsToggle);
+
+    auto audioLbl = geode::Label::create("Play Audio:", "bigFont.fnt");
+    audioLbl->setAnchorPoint({ 1.f, 0.5f });
+    audioLbl->setLimitLabelWidth(84.f, 0.34f, 0.2f);
+    audioLbl->setPosition({ 386.f, 58.f });
+    m_tabContent->addChild(audioLbl);
+
+    m_playAudioToggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(SettingsPopup::onTogglePlayAudio), 0.56f
+    );
+    m_playAudioToggle->toggle(g_playAudio);
+    m_playAudioToggle->setPosition({ 404.f, 58.f });
+    menu->addChild(m_playAudioToggle);
 
     auto resetSpr = ButtonSprite::create("Reset Visuals", "goldFont.fnt", "GJ_button_05.png", 0.8f);
     resetSpr->setScale(0.62f);
@@ -333,6 +401,8 @@ void SettingsPopup::onResetVisuals(CCObject*) {
         if (m_precSpacingSlider) { m_precSpacingSlider->setValue(toNorm(g_precLineSpacing, kPrecSpaceMin, kPrecSpaceMax)); m_precSpacingSlider->updateBar(); }
         if (m_precSpacingInput)  m_precSpacingInput->setString(fmt::format("{:.1f}", g_precLineSpacing));
         if (m_timelineToggle) m_timelineToggle->toggle(g_showInputTimeline);
+        if (m_timelineToggle)  m_timelineToggle->toggle(g_showInputTimeline);
+        if (m_hudLabelsToggle) m_hudLabelsToggle->toggle(g_showHudLabels);
         m_suppressCallbacks = false;
     }
 }
@@ -342,6 +412,35 @@ void SettingsPopup::onToggleInputTimeline(CCObject* sender) {
         g_showInputTimeline = !toggle->isToggled();
         saveVisualSettings();
         triggerVisualRefresh();
+    }
+}
+
+void SettingsPopup::onToggleHudLabels(CCObject* sender) {
+    if (auto toggle = typeinfo_cast<CCMenuItemToggler*>(sender)) {
+        g_showHudLabels = !toggle->isToggled();
+        saveVisualSettings();
+        triggerVisualRefresh();
+    }
+}
+
+void SettingsPopup::onToggleAutoSave(CCObject* sender) {
+    if (auto toggle = typeinfo_cast<CCMenuItemToggler*>(sender)) {
+        g_autoSaveEnabled = !toggle->isToggled();
+        if (g_autoSaveEnabled) {
+            // 重新开启时重置计时起点，避免立刻触发一次预期外的保存
+            g_lastAutoSaveTime = std::chrono::steady_clock::now();
+        }
+        saveSettings();
+    }
+}
+
+void SettingsPopup::onTogglePlayAudio(CCObject* sender) {
+    if (auto toggle = typeinfo_cast<CCMenuItemToggler*>(sender)) {
+        g_playAudio = !toggle->isToggled();
+        if (!g_playAudio) {
+            SoundManager::stopAll();
+        }
+        saveSettings();
     }
 }
 

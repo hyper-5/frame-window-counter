@@ -41,6 +41,12 @@ extern std::atomic<bool> g_isLStarDirty;
 extern std::chrono::steady_clock::time_point g_lastAutoSaveTime;
 
 extern bool g_showInputTimeline;
+extern bool g_showHudLabels;
+extern bool g_autoSaveEnabled;
+extern int g_autoSaveInterval;
+
+extern bool g_playAudio;
+
 extern std::atomic<uint64_t> g_actionsRevision;
 
 extern std::vector<double> g_vBase, g_vN, g_vF, g_vC, g_vNF, g_vNC, g_vFC, g_vNFC;

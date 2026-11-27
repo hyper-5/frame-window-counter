@@ -20,7 +20,6 @@ protected:
     cocos2d::CCMenu* m_tabMenu = nullptr;
     cocos2d::CCNode* m_tabContent = nullptr;
     bool m_suppressCallbacks = false;
-    CCMenuItemToggler* m_timelineToggle = nullptr;
 
     // --- Display Tab ---
     Slider* m_circleScaleSlider = nullptr;
@@ -40,6 +39,15 @@ protected:
 
     Slider* m_precSpacingSlider = nullptr;
     geode::TextInput* m_precSpacingInput = nullptr;
+
+    CCMenuItemToggler* m_timelineToggle = nullptr;
+
+    CCMenuItemToggler* m_hudLabelsToggle = nullptr;
+
+    CCMenuItemToggler* m_autoSaveToggle = nullptr;
+    geode::TextInput* m_autoSaveIntervalInput = nullptr;
+
+    CCMenuItemToggler* m_playAudioToggle = nullptr;
 
     // --- Labels Tab ---
     geode::TextInput* m_labelIdInput = nullptr;
@@ -98,6 +106,9 @@ protected:
     void onDisplaySliderChanged(cocos2d::CCObject* sender);
     void onResetVisuals(cocos2d::CCObject* sender);
     void onToggleInputTimeline(CCObject* sender);
+    void onToggleHudLabels(cocos2d::CCObject* sender);
+    void onToggleAutoSave(cocos2d::CCObject* sender);
+    void onTogglePlayAudio(cocos2d::CCObject* sender);
 
     // Labels Tab 回调
     void loadLabelPreset();
