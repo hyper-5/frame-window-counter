@@ -17,10 +17,38 @@
 #include <algorithm>
 #include <optional>
 #include <span>
+#include <cctype>
 
 using namespace geode::prelude;
 
 namespace FileIO {
+
+    std::string getDefaultExportName() {
+        GJGameLevel* level = nullptr;
+        if (auto pl = PlayLayer::get()) {
+            level = pl->m_level;
+        }
+        else if (auto ed = LevelEditorLayer::get()) {
+            level = ed->m_level;
+        }
+
+        if (!level || level->m_levelName.empty()) {
+            return "frames";
+        }
+
+        std::string cleanName;
+        cleanName.reserve(level->m_levelName.size());
+        for (unsigned char c : level->m_levelName) {
+            if (std::isalnum(c) || c == ' ' || c == '-' || c == '_') {
+                cleanName += static_cast<char>(c);
+            }
+        }
+
+        while (!cleanName.empty() && cleanName.front() == ' ') cleanName.erase(cleanName.begin());
+        while (!cleanName.empty() && cleanName.back() == ' ') cleanName.pop_back();
+
+        return cleanName.empty() ? "frames" : cleanName;
+    }
 
     static void doExportToFile(const std::filesystem::path& path, const std::vector<FrameAction>& exportList, bool isJson) {
         std::ofstream f(path.string(), isJson ? std::ios::out : std::ios::binary);
@@ -385,7 +413,7 @@ namespace FileIO {
             });
 
         file::FilePickOptions options;
-        options.defaultPath = "frames.fwc";
+        options.defaultPath = getDefaultExportName() + ".fwc";
         options.filters.push_back({ "Frame Window Counter (*.fwc)", { "*.fwc" } });
         options.filters.push_back({ "NANDL Calculator JSON (*.json)", { "*.json" } });
 
